@@ -1,0 +1,17 @@
+{
+  "name": "Ruffle3D",
+  "short_name": "Ruffle3D",
+  "description": "Parametric solid and free-form NURBS surface modelling for product design.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "background_color": "#0d0f13",
+  "theme_color": "#14171c",
+  "categories": ["design", "productivity", "graphics"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ruffle3D</title>
+    <meta name="description" content="Ruffle3D: parametric solid and free-form NURBS surface modelling for product design" />
+    <link rel="icon" href="./icons/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="theme-color" content="#14171c" />
+    <script>
+      // apply the saved theme before first paint
+      try {
+        const p = JSON.parse((localStorage.getItem('ruffle3d.prefs') || localStorage.getItem('forge3d.prefs')) || '{}');
+        const t = p.theme === 'system' || !p.theme ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : p.theme;
+        document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <header id="appbar"></header>
+      <nav id="toolbar"></nav>
+      <main id="main">
+        <aside id="left"></aside>
+        <section id="viewport">
+          <div id="banner"></div>
+          <div id="hud"></div>
+          <div id="navctl"></div>
+          <div id="vpinfo"></div>
+        </section>
+        <aside id="right"></aside>
+      </main>
+      <footer id="timeline"></footer>
+      <div id="statusbar"></div>
+    </div>
+    <div id="home"></div>
+    <div id="modal"></div>
+    <div id="toasts"></div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "Ruffle3D",
+  "tagline": "Parametric solid modelling and free-form NURBS surfacing for product design.",
+  "url": "https://ruffle3d.example",
+  "company": {
+    "legalName": "",
+    "address": "",
+    "jurisdiction": "",
+    "registration": ""
+  },
+  "email": {
+    "contact": "hello@ruffle3d.example",
+    "support": "support@ruffle3d.example",
+    "privacy": "privacy@ruffle3d.example",
+    "security": "security@ruffle3d.example",
+    "legal": "legal@ruffle3d.example"
+  },
+  "legalUpdated": "12 October 2026"
+}

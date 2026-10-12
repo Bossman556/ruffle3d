@@ -1,0 +1,92 @@
+<!-- {"title": "Surfacing — Ruffle3D documentation", "description": "CV curves, CV surfaces, skins, rails, patches, surface fillets, trims and surface evaluation in Ruffle3D.", "section": "docs"} -->
+<div class="container doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+    <h4>Documentation</h4>
+    <a href="index.html">Getting started</a>
+    <a href="modelling.html">Sketching and modelling</a>
+    <a href="surfacing.html" aria-current="page">Surfacing</a>
+    <a href="simulation.html">Simulation</a>
+    <a href="manufacture.html">Manufacture (CNC)</a>
+    <a href="files.html">Projects, import and export</a>
+    <a href="shortcuts.html">Keyboard shortcuts</a>
+    <h4>On this page</h4>
+    <a href="#workflow">How surfacing works</a>
+    <a href="#curves">CV curves</a>
+    <a href="#surfaces">Building surfaces</a>
+    <a href="#cv">Editing control vertices</a>
+    <a href="#finishing">Fillets, trims and solids</a>
+    <a href="#evaluation">Evaluating surfaces</a>
+  </nav>
+  <article class="prose">
+    <h1>Surfacing</h1>
+    <p>Switch the toolbar to <b>Surface</b> using the switch at its left end. Surfaces are open NURBS shells. They appear in their own <b>Surfaces</b> folder in the model panel and display from both sides.</p>
+
+    <h2 id="workflow">How surfacing works</h2>
+    <p>A typical free-form part goes through four steps:</p>
+    <ol>
+      <li>Lay out curves that describe the shape: sketch curves, or 3D CV curves.</li>
+      <li>Build surfaces from them with skins, rails and patches.</li>
+      <li>Blend and trim the surfaces until they form a watertight set.</li>
+      <li>Stitch or thicken them into a solid you can manufacture.</li>
+    </ol>
+    <p>All of these steps stay in the timeline, so you can go back and reshape a curve later.</p>
+
+    <h2 id="curves">CV curves</h2>
+    <p>Press <kbd>V</kbd> (CV Curve) and click to place control vertices. The curve is pulled towards them and passes through the first and last one. In the inspector you can:</p>
+    <ul>
+      <li>choose the degree (1, 2, 3 or 5), and whether the curve is closed;</li>
+      <li>choose where points go: <b>Auto</b> (the ground, or the upright plane facing you), XY, XZ, YZ, the <b>View</b> plane through the last point, or any construction plane;</li>
+      <li>set an <b>Offset</b> to draw above or below that plane;</li>
+      <li>turn <b>Snap onto faces</b> on to place points directly on the model.</li>
+    </ul>
+    <p>Press <kbd>Enter</kbd> to finish, or <kbd>Backspace</kbd> to remove the last point. Orbit between clicks to build a curve in 3D.</p>
+
+    <h2 id="surfaces">Building surfaces</h2>
+    <table class="data">
+      <tbody>
+        <tr><th>CV Surface</th><td>A NURBS patch with an editable grid of control vertices. Start from a plane (set size, CV counts and degree), or rebuild an existing face.</td></tr>
+        <tr><th>Skin</th><td>A surface through two or more section curves, in the order you click them.</td></tr>
+        <tr><th>Rail</th><td>Sweeps a profile curve along a rail curve.</td></tr>
+        <tr><th>Boundary patch</th><td>Fills a closed loop of curves or edges. Choose <b>G1</b> to make it tangent to the faces next to it.</td></tr>
+        <tr><th>Extrude / Revolve</th><td>Straight or revolved surfaces from curves.</td></tr>
+        <tr><th>Offset</th><td>Copies faces outwards or inwards as a new surface.</td></tr>
+      </tbody>
+    </table>
+    <h3>Rebuild as CV surface</h3>
+    <p>Rebuild turns any face into an editable CV surface. It has two methods:</p>
+    <ul>
+      <li><b>Exact</b> keeps the face's own NURBS: poles, weights and knots. NURBS and planar faces are reproduced exactly.</li>
+      <li><b>Refit</b> builds a grid with the number of CVs you choose. If a refit is too coarse, Ruffle3D reports how far it is from the original.</li>
+    </ul>
+    <p>Trimmed faces keep their holes and cut-outs in both methods.</p>
+
+    <h2 id="cv">Editing control vertices</h2>
+    <img class="screenshot" src="../assets/img/screens/cv-edit.jpg" width="2000" height="1250" alt="Editing CVs of a CV surface" loading="lazy" />
+    <p>Double-click a CV curve in the timeline, or choose <b>Edit CVs</b> for a CV surface, to show its control hull. Then:</p>
+    <ul>
+      <li>drag a CV to move it in the view plane, or set <b>Move along</b> to X, Y, Z or the surface <b>Normal</b>;</li>
+      <li>Shift-click to select several CVs, or use <b>Select row</b> or <b>Select column</b>;</li>
+      <li>type exact coordinates for one CV, or an offset for several;</li>
+      <li>on curves, insert or delete CVs, and change the degree or whether the curve is closed.</li>
+    </ul>
+    <p>The shape previews while you drag and rebuilds when you let go. Every edit can be undone.</p>
+
+    <h2 id="finishing">Fillets, trims and solids</h2>
+    <ul>
+      <li><b>Surface Fillet</b>: click the part of each surface you want to keep, then set the size. <b>Size by</b> can be the radius or the chord length. A <b>Variable</b> profile can be linear, an S-curve, or pass through a middle value. Both surfaces are trimmed where the fillet touches them, and everything is sewn into one surface.</li>
+      <li><b>Trim</b>: cuts a surface with a curve and keeps or removes the region you clicked. The curve is projected along its own plane, a world axis, or the <b>current view</b>. Choose <b>Use current view</b> to capture the direction you are looking.</li>
+      <li><b>Stitch</b>: sews surfaces together. A closed set becomes a solid; if gaps remain, Ruffle3D tells you how many open edges are left.</li>
+      <li><b>Thicken</b>: gives a surface a wall thickness outwards, inwards or both ways.</li>
+    </ul>
+
+    <h2 id="evaluation">Evaluating surfaces</h2>
+    <img class="screenshot" src="../assets/img/screens/surface-curvature.jpg" width="2000" height="1250" alt="Curvature map" loading="lazy" />
+    <ul>
+      <li><b>Curvature map</b>: red is convex, green is flat and blue is concave. Switch between mean, Gaussian and maximum curvature, and use <b>Sensitivity</b> to spread the colours.</li>
+      <li><b>Curvature comb</b>: click edges to show combs. A smooth comb outline means a fair curve.</li>
+      <li><b>Zebra</b>: reflection stripes. Stripes that run on smoothly across an edge mean the faces are tangent- or curvature-continuous.</li>
+      <li><b>Isophotes</b>: lines of equal light angle from a chosen direction. Even, flowing lines mean a fair surface.</li>
+      <li><b>Draft</b>: green faces release from a mould, yellow faces need more draft, and red faces are undercuts.</li>
+    </ul>
+  </article>
+</div>

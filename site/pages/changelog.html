@@ -1,0 +1,59 @@
+<!-- {"title": "Release notes — Ruffle3D", "description": "What's new in each version of Ruffle3D.", "section": "features"} -->
+<header class="page-head">
+  <div class="container">
+    <h1>Release notes</h1>
+    <p>What's in each version of Ruffle3D. <a href="download.html">Download the latest version</a>.</p>
+  </div>
+</header>
+
+<section class="section-tight">
+  <div class="container">
+    <article class="release" id="v{{release.version}}">
+      <div class="release-meta"><b>{{release.version}}</b><span>{{release.date}} · First public release</span></div>
+      <div class="prose">
+        <h3 style="margin-top:0">Modelling</h3>
+        <ul>
+          <li>History-based parametric solid modelling on the OpenCascade kernel, with a cached rebuild engine</li>
+          <li>Sketches with a geometric constraint solver, 13 constraint types, driving dimensions and expressions</li>
+          <li>Extrude, revolve, sweep, loft, hole, shell, draft, press-pull, split, fillet, chamfer, patterns, mirror, move and scale</li>
+          <li>Modelled ISO metric threads (M2 to M30), tapped holes and coil springs</li>
+          <li>Configurations: named design variants with a parameter table, and STEP export of every variant</li>
+          <li>Sheet metal: base plates, flanges up or down at any angle, flanges on flanges, and flat patterns with a bend table and DXF export</li>
+          <li>Raised and engraved text with a built-in engraving font and custom TTF / OTF fonts</li>
+          <li>Canvas reference images, construction planes and user parameters</li>
+        </ul>
+        <h3>Surfacing</h3>
+        <ul>
+          <li>Surface workspace: extrude, revolve, skin, rail, boundary patch and offset surfaces</li>
+          <li>CV curves and CV surfaces with direct control-vertex editing; rebuild any face as exact or refitted NURBS</li>
+          <li>Surface fillets with constant, variable and chord-length sizing; trim along the curve plane, an axis or the view; stitch and thicken</li>
+          <li>Curvature maps, curvature combs, zebra, isophote and draft analysis</li>
+        </ul>
+        <h3>Everything else</h3>
+        <ul>
+          <li>Assemblies: components from other projects, mate, flush, concentric, distance, angle, contact, gear and rack-and-pinion mates solved together, distance and angle limits, collision checking, degrees of freedom, conflict reporting and dragging parts</li>
+          <li>Joints with motion preview, interference checking, exploded views and a bill of materials with quantities</li>
+          <li>Manufacture: 2.5 and 3-axis CNC with facing, profiles, pockets, peck drilling, 3D roughing and ball-end parallel finishing, a tool library, toolpath simulation, cycle times and G-code</li>
+          <li>3D print check: overhang colouring, build-volume fit, watertight check and filament estimate</li>
+          <li>Materials, appearances, per-face paint, decals, the Render workspace and image capture up to 4K</li>
+          <li>Simulation: static stress (von Mises, displacement, safety factor), natural frequencies with animated mode shapes, steady-state and transient thermal, linear buckling, material yielding (plasticity), and generative design by topology optimisation, with HTML reports</li>
+          <li>Engineering drawings with hidden lines, section views, hole callouts and a hole table, placed dimensions with tolerances, notes, GD&amp;T frames and datums, a parts list with quantities and item balloons, and a title block. Placed dimensions follow the model when it changes</li>
+          <li>Wall thickness analysis with a minimum-wall check</li>
+          <li>STEP, STL and DXF import; STEP, STL, 3MF, DXF, GLB, OBJ, PNG, SVG and PDF export</li>
+          <li>Turntable video export (WebM) at 1080p, 720p, square and vertical sizes</li>
+          <li>Version compare: material added and removed since a saved version, with volume changes</li>
+          <li>Backups of all projects and versions, restore from backup, and an optional project folder that every save writes to</li>
+          <li>Stable references: features re-find faces and edges by geometric fingerprint after edits, including faces and edges that were split</li>
+          <li>Project dashboard, autosave, named versions, dark and light themes, and command search</li>
+          <li>Separate offline download packages for Windows, macOS and Linux; installable from Chrome and Edge</li>
+        </ul>
+        <h3>Known limitations</h3>
+        <ul>
+          <li>Rebuilding a cylinder, cone or torus face as a CV surface uses a dense fit rather than an exact conversion; the deviation is reported</li>
+          <li>Assemblies have no cam mates, and moving a part does not simulate dynamics</li>
+          <li>Simulation has no contact between parts, large-deflection geometry or radiation, and CAM is 3-axis from the top only (no 4th/5th axis or holding tabs)</li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>

@@ -1,0 +1,44 @@
+<!-- {"title": "Support — Ruffle3D", "description": "Get help with Ruffle3D: documentation, common problems, how to report a bug and how to contact support."} -->
+<header class="page-head">
+  <div class="container">
+    <h1>Support</h1>
+    <p>Most answers are in the <a href="docs/index.html">documentation</a>. If you're stuck, the common problems below are a good place to start. You can also email us.</p>
+  </div>
+</header>
+
+<section class="section-tight">
+  <div class="container">
+    <div class="contact-grid">
+      <div><h3>Documentation</h3><p>A step-by-step introduction, plus guides to modelling, surfacing, files and shortcuts.</p><a class="arrow-link" href="docs/index.html">Read the docs</a></div>
+      <div><h3>Email support</h3><p>For everyone. Tell us your operating system and Ruffle3D version, and attach the project file if you can.</p><a class="arrow-link" href="mailto:{{email.support}}">{{email.support}}</a></div>
+      <div><h3>Report a bug</h3><p>Tell us what you did, what you expected and what happened. Attach the project file if you can.</p><a class="arrow-link" href="#bugs">How to report</a></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="narrow">
+    <h2>Common problems</h2>
+    <div class="faq-list" style="margin-top:20px">
+      <details><summary>My projects disappeared</summary><p>Projects are stored by the browser for the address Ruffle3D runs on. If you started it in a different way (a different launcher, browser or port), your projects are still in the original place. Start Ruffle3D the way you did before. To move designs between setups, use <b>Download project file</b> and <b>Open file from disk</b>.</p></details>
+      <details><summary>The launcher opens but the page is blank</summary><p>Ruffle3D needs a recent browser with WebGL 2 and WebAssembly: Chrome or Edge 110+, Firefox 115+, or Safari 16.4+. Update your browser, or set one of these as your default. The status bar at the bottom of the app shows whether the geometry kernel has loaded.</p></details>
+      <details><summary>A feature turned red after I changed a dimension</summary><p>The feature refers to an edge or face that no longer exists in the same place. Double-click the feature in the timeline, reselect the edge or face, and choose OK. Hover over the red item to see the reason.</p></details>
+      <details><summary>A fillet or shell fails</summary><p>The size is usually too large for the geometry, for example a fillet radius bigger than the face next to it, or a shell wall as thick as a nearby rounded edge. Try a smaller value, or apply fillets after shelling.</p></details>
+      <details><summary>Exported STL looks faceted</summary><p>STL is a triangle mesh. Use STEP or 3MF where the receiving software supports them: STEP keeps the exact geometry, and 3MF keeps colours and units.</p></details>
+      <details><summary>macOS won't open the launcher</summary><p>Right-click <code>Start Ruffle3D (macOS).command</code> and choose <b>Open</b>. The script isn't notarised by Apple, so macOS asks for confirmation the first time. Or install Ruffle3D from Chrome or Edge instead.</p></details>
+      <details><summary>The model is slow to rebuild</summary><p>Modelled threads, large patterns and many fillets add a lot of geometry. Move them towards the end of the timeline, or roll the marker back while you work on earlier features.</p></details>
+    </div>
+
+    <h2 id="bugs" style="margin-top:64px">Reporting a bug</h2>
+    <p>Email <a href="mailto:{{email.support}}">{{email.support}}</a> with:</p>
+    <ol>
+      <li>The Ruffle3D version (shown in Preferences → About) and your operating system and browser.</li>
+      <li>The steps to reproduce the problem, starting from a new design if possible.</li>
+      <li>What you expected to happen, and what happened instead. Include any message from the status bar or the feature's inspector.</li>
+      <li>The project file (<b>Download project file</b>), if you are happy to share it. We only use it to fix the problem and delete it afterwards.</li>
+    </ol>
+
+    <h2 style="margin-top:64px">Response times</h2>
+    <p>Ruffle3D is free, and email support is best effort: we usually reply within a few business days, and bugs that lose work come first.</p>
+  </div>
+</section>

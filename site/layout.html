@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{page.title}}</title>
+  <meta name="description" content="{{page.description}}" />
+  <link rel="canonical" href="{{page.canonical}}" />
+  <link rel="icon" href="{{page.base}}assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="preload" href="{{page.base}}assets/fonts/inter.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="{{page.base}}assets/css/site.css" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Ruffle3D" />
+  <meta property="og:title" content="{{page.title}}" />
+  <meta property="og:description" content="{{page.description}}" />
+  <meta property="og:image" content="{{url}}/assets/img/screens/design-solid.jpg" />
+</head>
+<body class="{{page.bodyClass}}">
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="container header-row">
+      <a class="logo" href="{{page.base}}index.html" aria-label="Ruffle3D home">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l8.6 4.9v9.8L12 21.8l-8.6-4.9V7.1z" fill="#ef6c1a"/><path d="M3.6 7.2L12 12l8.4-4.8M12 12v9.6" stroke="#fff" stroke-width="1.5" fill="none"/></svg>
+        Ruffle3D
+      </a>
+      <nav class="primary-nav" aria-label="Primary">
+        <a data-nav="features" href="{{page.base}}features.html">Features</a>
+        <a data-nav="pricing" href="{{page.base}}pricing.html">Free</a>
+        <a data-nav="download" href="{{page.base}}download.html">Download</a>
+        <a data-nav="docs" href="{{page.base}}docs/index.html">Docs</a>
+        <a data-nav="support" href="{{page.base}}support.html">Support</a>
+      </nav>
+      <div class="header-actions">
+        <a class="text-link" href="{{page.base}}app/" target="_blank" rel="noopener">Open in browser</a>
+        <a class="button button-dark button-small" href="{{page.base}}download.html">Download</a>
+      </div>
+      <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-nav"><span></span><span></span></button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile" hidden>
+      <a href="{{page.base}}features.html">Features</a>
+      <a href="{{page.base}}pricing.html">Free</a>
+      <a href="{{page.base}}download.html">Download</a>
+      <a href="{{page.base}}docs/index.html">Docs</a>
+      <a href="{{page.base}}support.html">Support</a>
+      <a href="{{page.base}}app/" target="_blank" rel="noopener">Open in browser</a>
+    </nav>
+  </header>
+
+  <main id="main">
+{{content}}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a class="logo" href="{{page.base}}index.html">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l8.6 4.9v9.8L12 21.8l-8.6-4.9V7.1z" fill="#ef6c1a"/><path d="M3.6 7.2L12 12l8.4-4.8M12 12v9.6" stroke="#fff" stroke-width="1.5" fill="none"/></svg>
+          Ruffle3D
+        </a>
+        <p>CAD for product design. Runs on your computer, works offline.</p>
+        <p class="footer-version">Current version {{release.version}}</p>
+      </div>
+      <div>
+        <h2>Product</h2>
+        <ul>
+          <li><a href="{{page.base}}features.html">Features</a></li>
+          <li><a href="{{page.base}}features.html#surfacing">Surfacing</a></li>
+          <li><a href="{{page.base}}pricing.html">Free</a></li>
+          <li><a href="{{page.base}}download.html">Download</a></li>
+          <li><a href="{{page.base}}changelog.html">Release notes</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Resources</h2>
+        <ul>
+          <li><a href="{{page.base}}docs/index.html">Documentation</a></li>
+          <li><a href="{{page.base}}docs/shortcuts.html">Keyboard shortcuts</a></li>
+          <li><a href="{{page.base}}download.html#requirements">System requirements</a></li>
+          <li><a href="{{page.base}}support.html">Support</a></li>
+          <li><a href="{{page.base}}education.html">Education</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Company</h2>
+        <ul>
+          <li><a href="{{page.base}}about.html">About</a></li>
+          <li><a href="{{page.base}}contact.html">Contact</a></li>
+          <li><a href="{{page.base}}security.html">Security</a></li>
+          <li><a href="{{page.base}}press.html">Press kit</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Legal</h2>
+        <ul>
+          <li><a href="{{page.base}}legal/terms.html">Terms of Service</a></li>
+          <li><a href="{{page.base}}legal/eula.html">License Agreement</a></li>
+          <li><a href="{{page.base}}legal/privacy.html">Privacy Policy</a></li>
+          <li><a href="{{page.base}}legal/cookies.html">Cookie Notice</a></li>
+          <li><a href="{{page.base}}legal/open-source.html">Open-source notices</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>© {{year}} {{company.legalName}}. All rights reserved.</p>
+      <p>All trademarks are the property of their respective owners.</p>
+    </div>
+  </footer>
+  <script src="{{page.base}}assets/js/site.js" defer></script>
+</body>
+</html>

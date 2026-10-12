@@ -1,0 +1,33 @@
+<!-- {"title": "Security — Ruffle3D", "description": "How Ruffle3D protects your designs, and how to report a security vulnerability.", "section": "about"} -->
+<header class="page-head">
+  <div class="container">
+    <h1>Security</h1>
+    <p>Ruffle3D is local-first: your designs are stored and processed on your own computer. Most of the risks that come with cloud CAD simply don't apply.</p>
+  </div>
+</header>
+
+<section class="section">
+  <div class="narrow prose">
+    <h2 style="margin-top:0">How Ruffle3D handles your data</h2>
+    <ul>
+      <li><b>No cloud storage.</b> Projects, versions and thumbnails are kept in your browser's storage on your device. We don't receive them.</li>
+      <li><b>No account.</b> You don't need to sign in to use Ruffle3D, so there are no stored passwords to leak.</li>
+      <li><b>Local processing.</b> Geometry is computed by the OpenCascade kernel, running as WebAssembly on your device. Rendering uses your GPU through WebGL.</li>
+      <li><b>Local server only.</b> The offline launchers start a web server that listens only on <code>localhost</code> (port 47830). It serves the app's files and nothing else, and it isn't reachable from other computers.</li>
+      <li><b>No tracking in the app.</b> The application contains no analytics, advertising or third-party trackers.</li>
+      <li><b>Integrity.</b> Every download has a published SHA-256 checksum on the <a href="download.html">download page</a>, so you can confirm the file hasn't been altered.</li>
+    </ul>
+
+    <h2>Air-gapped and restricted networks</h2>
+    <p>The download package runs with no network connection at all. Copy it onto the machines and run it; nothing needs to be activated or to phone home. <a href="contact.html#general">Contact us</a> if you need help deploying it.</p>
+
+    <h2 id="report">Reporting a vulnerability</h2>
+    <p>If you think you've found a security problem in Ruffle3D or this website, email <a href="mailto:{{email.security}}">{{email.security}}</a> with:</p>
+    <ul>
+      <li>a description of the issue and its impact;</li>
+      <li>steps to reproduce it, or a proof of concept;</li>
+      <li>the version you tested.</li>
+    </ul>
+    <p>We'll acknowledge your report within three business days and keep you updated while we investigate. Please give us reasonable time to fix the issue before you disclose it publicly. We won't take legal action against good-faith research that respects users' privacy and doesn't disrupt services.</p>
+  </div>
+</section>

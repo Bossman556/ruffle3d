@@ -1,0 +1,56 @@
+<!-- {"title": "Manufacture (CNC) — Ruffle3D documentation", "description": "2.5 and 3-axis CNC milling in Ruffle3D: stock and work origin, the tool library, facing, profile, pocket and drilling operations, simulation and G-code.", "section": "docs"} -->
+<div class="container doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+    <h4>Documentation</h4>
+    <a href="index.html">Getting started</a>
+    <a href="modelling.html">Sketching and modelling</a>
+    <a href="surfacing.html">Surfacing</a>
+    <a href="simulation.html">Simulation</a>
+    <a href="manufacture.html" aria-current="page">Manufacture (CNC)</a>
+    <a href="files.html">Projects, import and export</a>
+    <a href="shortcuts.html">Keyboard shortcuts</a>
+    <h4>On this page</h4>
+    <a href="#setup">Setup and stock</a>
+    <a href="#tools">Tool library</a>
+    <a href="#operations">Operations</a>
+    <a href="#gcode">Simulating and G-code</a>
+    <a href="#limits">Limits</a>
+  </nav>
+  <article class="prose">
+    <h1>Manufacture (CNC)</h1>
+    <p>The <b>Manufacture</b> workspace turns a part into toolpaths and G-code for a 3-axis CNC mill or router. It covers 2.5-axis work (flat faces, outlines, pockets and holes cut from the top) and 3-axis machining of curved surfaces.</p>
+    <img class="screenshot" src="../assets/img/screens/manufacture.jpg" width="2000" height="1250" alt="Facing, pocket, drilling and profile toolpaths on a plate in the Manufacture workspace" loading="lazy" />
+
+    <h2 id="setup">Setup and stock</h2>
+    <p>Choose the part in the panel. The stock is the part's bounding box plus a <b>side margin</b> and a <b>top allowance</b>. The part is machined from the top, along +Z. In the G-code, Z is zero at the top of the stock, and X and Y are measured from the front-left corner of the stock or from its centre. Set the same work origin on your machine before you run the program.</p>
+
+    <h2 id="tools">Tool library</h2>
+    <p><b>Tools</b> opens the library of flat end mills, ball end mills and drills. Each tool has a diameter, a spindle speed, a cutting feed and a plunge feed in mm/min. End mills also have a step-down (depth per pass) and a step-over (a fraction of the diameter); drills have a peck depth. The starting values are cautious figures for aluminium. Check your tool maker's recommendations, and reduce them for small machines or harder materials.</p>
+
+    <h2 id="operations">Operations</h2>
+    <table class="data">
+      <thead><tr><th>Operation</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td>Facing</td><td>Skims the top allowance off the whole stock in a zigzag, down to the top of the part.</td></tr>
+        <tr><td>2D Profile</td><td>Follows the outline of the flat faces you pick, with the tool outside the outline, inside it, or on it. Turn on <b>Cut through the part</b> to cut it free from the stock. Holes inside the face are profiled too.</td></tr>
+        <tr><td>Pocket</td><td>Click the floor of a pocket. The pocket is cleared in rings from the walls inwards, in equal depth passes, and the tool goes around any islands left standing in the pocket.</td></tr>
+        <tr><td>3D Rough</td><td>Clears material from curved parts in equal depth levels, following the surface where it rises above each level and leaving <b>stock to leave</b> (0.3 mm by default) for finishing. Use a flat end mill.</td></tr>
+        <tr><td>3D Parallel finish</td><td>Raster passes over the whole part with a ball end mill, following the surface exactly (drop-cutter on a fine height map of the part, to the <b>tolerance</b> you set). A step-over of about 10% of the ball diameter gives a smooth finish.</td></tr>
+        <tr><td>Drill</td><td>Click the round wall of each vertical hole. Holes are drilled with full-retract pecking, and through holes are drilled past the bottom by the drill's tip. You get a warning if the drill doesn't match the hole size.</td></tr>
+      </tbody>
+    </table>
+    <p>Operations run in the order shown in the panel. Use the arrows to reorder them, the eye to leave one out, and click an operation to change its tool and settings. Each operation shows its cutting distance and an estimated time.</p>
+
+    <h2 id="gcode">Simulating and G-code</h2>
+    <p>Feed moves are drawn in teal and rapid moves as dashed red lines; the stock is outlined in orange. <b>Simulate</b> moves a tool along the whole program so you can check the order and spot anything unexpected. <b>Post</b> writes a <code>.nc</code> file in millimetres with absolute coordinates, tool changes (<code>T</code> <code>M6</code>), spindle speeds, and explicit drilling moves rather than canned cycles. It works with GRBL, LinuxCNC, Mach3/Mach4 and most Fanuc-style controls.</p>
+    <div class="note">Always check new G-code in your machine's own simulator or with an air cut above the stock, and run the first part slowly.</div>
+
+    <h2 id="limits">Limits</h2>
+    <ul>
+      <li>Everything is cut from the top (+Z). There is no 4th or 5th axis, and 3D operations can't reach undercuts.</li>
+      <li>Profiles don't add holding tabs. Hold through-cut parts with screws, double-sided tape or a vacuum table.</li>
+      <li>There is no material-removal simulation or collision check against fixtures.</li>
+      <li>Ramping and helical entry are not used: tools plunge straight down at the plunge feed. Use end mills that can cut at their centre, or drill a start hole.</li>
+    </ul>
+  </article>
+</div>

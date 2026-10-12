@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.log
+# generated website output: it has its own repository (ruffle3d-website)
+website/

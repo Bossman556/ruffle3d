@@ -1,0 +1,89 @@
+<!-- {"title": "Projects, import and export — Ruffle3D documentation", "description": "How Ruffle3D stores projects, versions and backups, and which file formats it imports and exports.", "section": "docs"} -->
+<div class="container doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+    <h4>Documentation</h4>
+    <a href="index.html">Getting started</a>
+    <a href="modelling.html">Sketching and modelling</a>
+    <a href="surfacing.html">Surfacing</a>
+    <a href="simulation.html">Simulation</a>
+    <a href="manufacture.html">Manufacture (CNC)</a>
+    <a href="files.html" aria-current="page">Projects, import and export</a>
+    <a href="shortcuts.html">Keyboard shortcuts</a>
+    <h4>On this page</h4>
+    <a href="#storage">Where projects are stored</a>
+    <a href="#versions">Versions</a>
+    <a href="#backup">Backups and moving computers</a>
+    <a href="#import">Import</a>
+    <a href="#export">Export</a>
+    <a href="#safety">Backups and project folder</a>
+    <a href="#annotate">Dimensions and notes on drawings</a>
+    <a href="#compare">Comparing versions</a>
+    <a href="#render">Images and drawings</a>
+  </nav>
+  <article class="prose">
+    <h1>Projects, import and export</h1>
+
+    <h2 id="storage">Where projects are stored</h2>
+    <p>Ruffle3D keeps your projects on your own computer, in the browser's storage for the address it runs on. Nothing is uploaded. Each change is saved automatically a moment after you make it. The indicator next to the project name shows when saving is done.</p>
+    <div class="note"><strong>Keep using the same launcher.</strong> Browser storage belongs to one address. The download package always uses <code>http://localhost:47830</code>, and the installed app always uses the same address too. If you open Ruffle3D in a different way, your earlier projects won't appear there. Move them with a project file (see below).</div>
+
+    <h2 id="versions">Versions</h2>
+    <p>Choose <b>Save version…</b> from the project menu, or use the <b>Versions</b> tab, to keep a named snapshot. You can restore any version later. To keep the current state as well, save a version of it before restoring.</p>
+
+    <h2 id="backup">Backups and moving computers</h2>
+    <p><b>Download project file</b> in the project menu saves the whole design, with its history, parameters and appearances, as a <code>.ruffle3d.json</code> file. Open it on any computer with <b>Open file from disk…</b>. We recommend keeping these files in your usual backup or cloud folder.</p>
+
+    <h2 id="import">Import</h2>
+    <table class="data">
+      <thead><tr><th>Format</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>STEP (.step, .stp)</td><td>Solids and surfaces from any CAD system. Imported bodies can be modified with the usual features.</td></tr>
+        <tr><td>STL (.stl)</td><td>Mesh models (binary or text). Closed meshes come in as solids you can measure, simulate and use in Booleans; open meshes come in as surfaces.</td></tr>
+        <tr><td>DXF (.dxf)</td><td>2D drawings from other CAD programs, vector drawing software or laser-cutting software, imported into a new sketch: lines, arcs, circles, polylines with bulges, splines, ellipses and blocks. Units come from the file, and you can override them. Text, dimensions and hatching are skipped.</td></tr>
+        <tr><td>Ruffle3D project (.ruffle3d.json)</td><td>Full designs with history. Older Forge3D project files open too.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="export">Export</h2>
+    <table class="data">
+      <thead><tr><th>Format</th><th>Use it for</th></tr></thead>
+      <tbody>
+        <tr><td>STEP</td><td>Exchanging exact geometry with other CAD, CAM and simulation tools. Multi-body, with names and colours.</td></tr>
+        <tr><td>STL</td><td>3D printing and other mesh-based tools.</td></tr>
+        <tr><td>3MF</td><td>3D printing with colours and correct units; the mesh is welded so slicers see a closed solid.</td></tr>
+        <tr><td>GLB (glTF binary)</td><td>Web viewers, AR and game engines; includes materials.</td></tr>
+        <tr><td>OBJ</td><td>Older rendering and mesh tools.</td></tr>
+        <tr><td>DXF</td><td>Laser cutting, waterjet and CNC routing. Choose <b>Export ▸ DXF</b> and click a flat face (exported in its own plane, starting at the origin) or a sketch. Lines and arcs stay exact; units are millimetres.</td></tr>
+        <tr><td>WebM video</td><td>Turntable animations from the Render workspace, for presentations and websites.</td></tr>
+        <tr><td>CSV</td><td>Bills of materials from Inspect ▸ Bill of materials.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="safety">Backups and project folder</h2>
+    <p>Projects are saved in your browser's storage for Ruffle3D. Ruffle3D asks the browser to keep that storage permanently, but you should still keep copies elsewhere:</p>
+    <ul>
+      <li><b>Back up all projects</b> (Projects page) downloads one <code>.zip</code> with every project and all its saved versions. <b>Restore backup</b> adds the projects from such a file as new projects; nothing is overwritten.</li>
+      <li><b>Save to a folder</b> (Projects page, in Chrome and Edge) picks a folder on your computer, for example one that syncs to a cloud drive. From then on every save also writes the project there as a <code>.ruffle3d.json</code> file. After the browser restarts, choose <b>Reconnect project folder</b> once to allow writing again.</li>
+      <li><b>Project ▸ Download project file</b> saves the open project on its own.</li>
+    </ul>
+
+    <h2 id="annotate">Dimensions and notes on drawings</h2>
+    <p>The drawing toolbar has annotation tools:</p>
+    <ul>
+      <li><b>Dimension</b>: click two points for a length. It's horizontal or vertical depending on where you place it, or choose <b>Aligned</b>. Click a circle for its diameter or an arc for its radius, and two edges for the angle between them. Points snap to corners, line midpoints and circle centres.</li>
+      <li><b>Note</b>: click where the arrow should point, then where the text goes (click the same spot twice for a note without a leader).</li>
+      <li><b>GD&amp;T</b>: a feature control frame with the characteristic (flatness, position, parallelism and so on), the tolerance and up to three datums.</li>
+      <li><b>Datum</b>: a datum triangle and letter.</li>
+    </ul>
+    <p>With <b>Select</b>, drag an annotation to move it, double-click it to edit (for dimensions: the text and a tolerance such as <code>±0.1</code> or <code>+0.05/-0</code>), and press <kbd>Delete</kbd> to remove it. Dimensions belong to their view and show the true model size at any scale. They are saved with the project and included in SVG and PDF output. They follow the model: when you change the part and open the drawing again, each dimension finds the edges, corners or hole it measured and shows the new value. If that geometry is gone, the dimension turns red so you can delete it and place it again.</p>
+
+    <h2 id="compare">Comparing versions</h2>
+    <p>In the <b>Versions</b> tab, choose <b>Compare</b> on a saved version to see what has changed since then. Material added since that version is shown in green and material removed in red, over a faint copy of the current model. The panel lists the volume change for each body and for the whole design. Comparing doesn't change anything; use <b>Restore</b> to go back to the version.</p>
+
+    <h2 id="render">Images and drawings</h2>
+    <p>In the <b>Render</b> workspace, choose an environment and background, then <b>Capture</b> to save a PNG. You can capture at 2× resolution, 4K or a 2048 × 2048 square, with an optional transparent background. Under <b>Turntable video</b>, choose a size and length and <b>Record video</b> to save a WebM of one full orbit. In the <b>Drawing</b> workspace, export the sheet as SVG, or choose <b>Print / PDF</b> and save it as a PDF from the print dialog.</p>
+    <p><b>Decals</b> (the Decal button in the Render workspace, or Insert ▸ more) put a logo, label or graphic on the model. Choose an image, then click the face to put it on. You can change its width, rotation and opacity, or move it to another face. Decals are projected onto the faces under them, so they follow gentle curves. They appear in renders and screenshots, and don't change the geometry.</p>
+    <p>Drawings mark every vertical hole on the top view with a centre mark and a letter, and list them in a <b>hole table</b>: size, through or blind depth, counterbore or countersink, and quantity. Turn it off with <b>Hole table</b> in the drawing toolbar.</p>
+    <p>To add a section view, choose <b>Section ▸ A–A (front)</b> or <b>B–B (side)</b> in the drawing toolbar and drag the slider to place the cut. The cut faces are hatched, and the section line with its view arrows is drawn on the top or front view. Drawings of several bodies get a parts list with each part's material, mass and quantity: identical components of an assembly are one item. <b>Item balloons</b> number the parts on the front view to match the list.</p>
+  </article>
+</div>

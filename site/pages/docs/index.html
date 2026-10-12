@@ -1,0 +1,68 @@
+<!-- {"title": "Getting started — Ruffle3D documentation", "description": "Install Ruffle3D, learn the interface and build your first parametric part.", "section": "docs"} -->
+<div class="container doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+    <h4>Documentation</h4>
+    <a href="index.html" aria-current="page">Getting started</a>
+    <a href="modelling.html">Sketching and modelling</a>
+    <a href="surfacing.html">Surfacing</a>
+    <a href="simulation.html">Simulation</a>
+    <a href="manufacture.html">Manufacture (CNC)</a>
+    <a href="files.html">Projects, import and export</a>
+    <a href="shortcuts.html">Keyboard shortcuts</a>
+    <h4>On this page</h4>
+    <a href="#install">Install</a>
+    <a href="#interface">The interface</a>
+    <a href="#navigation">Moving around</a>
+    <a href="#first-part">Your first part</a>
+    <a href="#parameters">Parameters</a>
+    <a href="#help">Getting help</a>
+  </nav>
+  <article class="prose">
+    <h1>Getting started</h1>
+    <p>This guide takes about fifteen minutes. By the end you will have built a parametric part, changed it with a parameter and exported it.</p>
+
+    <h2 id="install">Install</h2>
+    <p>Download the package from the <a href="../download.html">download page</a>, unzip it and start the launcher for your system. Or open Ruffle3D in Chrome or Edge and choose <b>Install Ruffle3D</b>. Both versions work offline.</p>
+    <div class="note"><strong>Where are my files?</strong> Projects are stored on your computer, in the browser storage for the address Ruffle3D runs on. Keep using the same launcher, or the same installed app, and your projects will be there. Use <b>Download project file</b> to make backups.</div>
+
+    <h2 id="interface">The interface</h2>
+    <img class="screenshot" src="../assets/img/screens/design-solid.jpg" width="2000" height="1250" alt="The Ruffle3D window" loading="lazy" />
+    <ul>
+      <li><b>App bar</b> (top): project menu, Design / Render / Drawing workspaces, command search, undo and redo, theme, preferences and Export.</li>
+      <li><b>Toolbar</b>: switch between <b>Solid</b> and <b>Surface</b> tools on the left. Each group has more tools behind its arrow.</li>
+      <li><b>Model panel</b> (left): bodies, surfaces, curves, sketches and construction geometry. The Parameters and Versions tabs are here too.</li>
+      <li><b>Inspector</b> (right): changes with what you are doing. It shows a command's options, a selected body's properties and material, or a sketch's constraint status.</li>
+      <li><b>Timeline</b> (bottom): every feature in order. Double-click to edit, right-click for options, and drag the marker to roll back.</li>
+    </ul>
+    <p>Press <kbd>Ctrl</kbd> <kbd>K</kbd> at any time to search for a command by name.</p>
+
+    <h2 id="navigation">Moving around</h2>
+    <table class="data">
+      <tbody>
+        <tr><th>Orbit</th><td>Right-drag, or Shift + middle-drag</td></tr>
+        <tr><th>Pan</th><td>Middle-drag, or Shift + right-drag</td></tr>
+        <tr><th>Zoom</th><td>Scroll wheel (zooms towards the cursor)</td></tr>
+        <tr><th>Standard views</th><td>Click a face, edge or corner of the view cube</td></tr>
+        <tr><th>Fit all</th><td><kbd>F6</kbd>, or the fit button on the navigation bar</td></tr>
+      </tbody>
+    </table>
+    <p>If you're used to another CAD program, open <b>Preferences → Navigation</b> and pick the mouse preset that matches it: Shift + middle orbit, middle orbit, or right orbit.</p>
+
+    <h2 id="first-part">Your first part</h2>
+    <ol>
+      <li>On the dashboard, choose <b>New design</b>.</li>
+      <li>Press <kbd>K</kbd> (Sketch) and click the XY plane.</li>
+      <li>Press <kbd>R</kbd> and draw a rectangle. Press <kbd>D</kbd> and click each side to dimension it: type <code>80</code> and <code>50</code>.</li>
+      <li>Press <kbd>C</kbd>, draw a circle in the middle and dimension it to <code>20</code>. When the inspector says <b>Fully constrained</b>, choose <b>Finish Sketch</b>.</li>
+      <li>Press <kbd>E</kbd> (Extrude). Click the region between the rectangle and the circle, set the distance to <code>8</code> and choose <b>OK</b>.</li>
+      <li>Press <kbd>F</kbd> (Fillet), click the four vertical edges, set the radius to <code>6</code> and choose <b>OK</b>.</li>
+      <li>Click the part. The inspector shows its mass, volume and surface area. Choose a material to see the mass update.</li>
+    </ol>
+
+    <h2 id="parameters">Parameters</h2>
+    <p>Open the <b>Parameters</b> tab in the left panel and add a parameter such as <code>width = 80</code>. Then double-click the 80 dimension in your sketch and type <code>width</code>. Change the parameter to 120 and the whole part rebuilds, fillets included. Any numeric field accepts expressions like <code>width / 2 + 3</code> or values with units like <code>1 in</code>.</p>
+
+    <h2 id="help">Getting help</h2>
+    <p>Hover over any tool to see its name, shortcut and a short description. The rest of this documentation covers each area in more depth. If something doesn't work as described, see <a href="../support.html">Support</a>.</p>
+  </article>
+</div>

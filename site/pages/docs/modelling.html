@@ -1,0 +1,121 @@
+<!-- {"title": "Sketching and modelling — Ruffle3D documentation", "description": "Sketches, constraints, dimensions, solid features, the timeline, threads, assemblies and the bill of materials in Ruffle3D.", "section": "docs"} -->
+<div class="container doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+    <h4>Documentation</h4>
+    <a href="index.html">Getting started</a>
+    <a href="modelling.html" aria-current="page">Sketching and modelling</a>
+    <a href="surfacing.html">Surfacing</a>
+    <a href="simulation.html">Simulation</a>
+    <a href="manufacture.html">Manufacture (CNC)</a>
+    <a href="files.html">Projects, import and export</a>
+    <a href="shortcuts.html">Keyboard shortcuts</a>
+    <h4>On this page</h4>
+    <a href="#sketches">Sketches</a>
+    <a href="#constraints">Constraints and dimensions</a>
+    <a href="#features">Solid features</a>
+    <a href="#threads">Threads and springs</a>
+    <a href="#text">Text</a>
+    <a href="#sheet-metal">Sheet metal</a>
+    <a href="#configurations">Configurations</a>
+    <a href="#timeline">The timeline</a>
+    <a href="#assemblies">Joints and assemblies</a>
+    <a href="#inspect">Inspecting parts</a>
+  </nav>
+  <article class="prose">
+    <h1>Sketching and modelling</h1>
+
+    <h2 id="sketches">Sketches</h2>
+    <p>Start a sketch with <kbd>K</kbd> and click an origin plane, a construction plane or any flat face. Sketches attached to faces follow the face when the model changes.</p>
+    <img class="screenshot" src="../assets/img/screens/sketch.jpg" width="2000" height="1250" alt="Sketch mode" loading="lazy" />
+    <p>While you draw, Ruffle3D adds horizontal, vertical, coincident and midpoint constraints automatically. To give an exact size, type a number while a line or circle is being drawn. Construction geometry (<kbd>X</kbd>) is drawn dashed and is not used for profiles.</p>
+    <p><b>Project</b> copies edges of the model into the sketch as fixed reference geometry. Projections are associative: when the model changes, each projected edge is found again and moved, so dimensions and constraints that use it follow. If its edge is gone, the projection keeps its last position and the sketch shows a warning.</p>
+    <p>Closed regions become profiles. Overlapping curves split into separate regions, and loops inside other loops become holes. When you extrude or revolve, click the regions you want to use.</p>
+
+    <h2 id="constraints">Constraints and dimensions</h2>
+    <p>The colour of the geometry tells you its state: <b>blue</b> is free to move, <b>white</b> (black in the light theme) is fully defined, and <b>red</b> means the constraints conflict. The inspector shows how many degrees of freedom are left.</p>
+    <p>The Dimension tool (<kbd>D</kbd>) works on everything. Click a line for its length, two points for a distance, a circle for its diameter or two lines for the angle between them. Where you place the label decides whether a distance is horizontal or vertical. Double-click a dimension to change it. Values can be parameter expressions.</p>
+
+    <h2 id="features">Solid features</h2>
+    <table class="data">
+      <thead><tr><th>Feature</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td>Extrude <kbd>E</kbd></td><td>Pushes profiles into solids: one side, symmetric or two sides, with optional twist. Can create a new body, or join, cut or intersect an existing one.</td></tr>
+        <tr><td>Revolve</td><td>Spins profiles around a sketch axis or a world axis.</td></tr>
+        <tr><td>Sweep / Loft</td><td>Sweep moves a profile along a path sketch; Loft blends between two profiles.</td></tr>
+        <tr><td>Hole <kbd>H</kbd></td><td>Simple, counterbored or countersunk holes on faces, to a depth or through all.</td></tr>
+        <tr><td>Fillet <kbd>F</kbd> / Chamfer</td><td>Rounds or bevels the selected edges.</td></tr>
+        <tr><td>Shell</td><td>Hollows a body to a wall thickness, removing the faces you pick.</td></tr>
+        <tr><td>Press Pull <kbd>Q</kbd></td><td>Pushes or pulls flat faces by a distance.</td></tr>
+        <tr><td>Draft</td><td>Tapers faces against a neutral plane for moulding.</td></tr>
+        <tr><td>Split body</td><td>Cuts a body into two with a plane or face.</td></tr>
+        <tr><td>Patterns / Mirror</td><td>Rectangular and circular patterns of bodies; mirror about a plane.</td></tr>
+        <tr><td>Move / Scale <kbd>M</kbd></td><td>Moves, rotates, copies or scales bodies.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="threads">Threads and springs</h2>
+    <p><b>Thread</b> (Create ▸ more) adds a modelled ISO metric thread to a cylindrical face. Click a shaft for an external thread or a hole for an internal one; Ruffle3D detects which it is. Choose a size from M2 to M30, or a custom pitch. You can thread the whole face or a set length, change the start offset, flip the start end, and choose right or left hand. If the face diameter doesn't suit the size you chose, Ruffle3D warns you. For example, an M10 thread needs a Ø10 shaft, or a hole of about Ø8.5.</p>
+    <p><b>Coil</b> creates a helical spring from a coil radius, pitch, number of turns and wire diameter.</p>
+    <div class="note">Modelled threads add a lot of geometry. Add them near the end of the timeline so earlier edits rebuild quickly.</div>
+
+    <h3>Tapped holes</h3>
+    <p>In the Hole tool, turn on <b>Tapped</b> and pick a thread size. The drill diameter is set from the ISO tap-drill size (for example Ø5 for M6). The thread is modelled to the depth you choose, or right through.</p>
+
+    <h2 id="text">Text</h2>
+    <p><b>Text</b> (Create ▸ more) adds raised or engraved lettering for part numbers, logos and labels. Pick a plane or a flat face, type the text, and set the height, position, rotation and depth. Choose <b>Emboss</b> to add it on top of the face, or <b>Engrave</b> to cut it into the body. Press <kbd>Shift</kbd> <kbd>Enter</kbd> in the text box to start a second line.</p>
+    <p>The built-in <b>Ruffle Engrave</b> font is a single-stroke font made for machining and 3D printing. It has capital letters, numbers and common symbols, in thin, regular or bold strokes. To use another font, choose <b>Load a font file</b> in the Font list and pick a TTF or OTF file. The font is saved inside the project, so the text rebuilds on any computer. Check that the font's licence allows embedding.</p>
+
+    <h3>Exploded views</h3>
+    <p><b>Explode</b> (Assemble) spreads the bodies of an assembly apart. Choose <b>Radial</b> to move parts away from the centre, or X, Y or Z to stack them along an axis: the largest part stays put and the others lift away from it in order, so parts inside a housing come out of the top. The model doesn't change. Turn on <b>Use in the Render workspace</b>, or use the Exploded view section of the Render panel, to capture images and turntable videos of the exploded assembly.</p>
+
+    <h3>Canvas images</h3>
+    <p><b>Insert ▸ Canvas</b> puts a photo, sketch or blueprint on the XY, XZ or YZ plane so you can model over it. Set the width to a size you know from the image to calibrate it, then move, rotate, mirror or fade it. Canvases only appear in the Design workspace and are never part of the model.</p>
+
+    <h2 id="sheet-metal">Sheet metal</h2>
+    <p>Sheet metal tools are in the <b>Sheet Metal</b> group of the Solid toolbar.</p>
+    <ol>
+      <li>Draw the outline of the flat plate in a sketch. Use straight lines for any edge that will get a flange.</li>
+      <li>Choose <b>Base</b>, pick the profile, and set the thickness, the inside bend radius and the K-factor. The K-factor is where the neutral axis sits through the thickness: 0.44 suits most steel and aluminium bent in a press brake. Turn on <b>Flip thickness side</b> to grow the plate below the sketch.</li>
+      <li>Choose <b>Flange</b> and click one or more straight outside edges of the plate. Set the length after the bend, the bend angle and the direction. <b>Inset from corners</b> stops the flange short of both corners, which leaves room for neighbouring flanges.</li>
+      <li>Add holes or cut-outs with the normal tools: Hole, or an extrude set to Cut.</li>
+      <li>Choose <b>Flat</b> to see the flat pattern. It lists every bend and the blank size, and <b>Download DXF</b> saves it for cutting.</li>
+    </ol>
+    <p>The flat length of each bend is the bend allowance, θ × (R + K × T), where θ is the bend angle in radians, R the inside radius and T the thickness. Flanges start at the edge of the plate, so a 90° flange adds R + T to the outside size of the folded part.</p>
+    <p>Flanges can carry flanges: click the end edge or a side edge of a flange to fold a lip, a return or a side tab from it. The flat pattern unfolds every level. Each edge takes one flange.</p>
+
+    <h2 id="configurations">Configurations</h2>
+    <p>Configurations are named variants of one design, for example S, M and L. Open <b>Insert ▸ Configurations</b>, or choose <b>Table</b> in the Parameters tab, to edit a table: one row for each parameter, one column for each variant. Leave a cell empty to use the Default value. Switch the active configuration from the Parameters tab, or click the chip in the viewport. <b>Export STEP for every configuration</b> writes one file per variant.</p>
+
+    <h2 id="timeline">The timeline</h2>
+    <p>When you change a dimension or edit an earlier feature, later features find their faces and edges again from a fingerprint taken when you picked them (position, direction, size and shape), not just from where you clicked. If an edge or face has been split in two, fillets, chamfers, shells and drafts apply to all the pieces. If a reference really can't be found, the feature turns red and asks you to pick again.</p>
+    <p>Every feature appears in the timeline at the bottom of the window. Double-click a feature to edit it, or right-click to rename, suppress or delete it. Drag the marker to roll the model back and insert new features earlier in the history. Features that fail are shown in red, with the reason in the inspector. Features with warnings are amber.</p>
+
+    <h2 id="assemblies">Assemblies</h2>
+    <p>An assembly is a design made of other projects. Save each part as its own project, then open a new project and choose <b>Component</b> (Assemble) to place them. Ruffle3D keeps a copy of each part in the assembly, so it still opens if the part's project changes or is deleted. Put the same part in several times and the bill of materials lists it once with a quantity.</p>
+    <p><b>Mate</b> fits parts together. Click a face on each part and choose the mate type:</p>
+    <ul>
+      <li><b>Mate</b>: flat faces against each other, with an optional offset (gap).</li>
+      <li><b>Flush</b>: flat faces level and pointing the same way.</li>
+      <li><b>Concentric</b>: two round faces on one axis, such as a pin in a hole. A pair of round faces gets this type automatically.</li>
+      <li><b>Distance</b>: parallel flat faces a set distance apart, measured out from the first face (use a negative distance for the other side).</li>
+      <li><b>Parallel</b>, <b>Perpendicular</b> and <b>Angle</b>: faces or axes at a set angle.</li>
+      <li><b>Contact</b>: a flat face rests on another. The part can lift off but can't sink into it.</li>
+      <li><b>Gear</b>: two round faces turn together at a ratio (the first gear's teeth ÷ the second's). They turn in opposite directions unless you choose <b>Same direction</b> for a belt or chain. Add concentric mates to hold each gear on its shaft.</li>
+      <li><b>Rack and pinion</b>: pick a round face on the pinion, then the flat end face of the rack. Turning the pinion slides the rack by pitch radius × the angle turned.</li>
+      <li><b>Limits</b>: turn on <b>Range</b> for a Distance or Angle mate to give a minimum and maximum instead of one value. The part can then slide or swing freely between the end stops, and dragging it stops at the ends.</li>
+    </ul>
+    <p>All mates are solved together after every change. The first component is grounded (fixed) unless you ground another in the <b>Assembly</b> panel; parts with no mates stay where you put them. The panel shows each mate's status and how many degrees of freedom are left. When a mate can't be satisfied together with the mates added before it, it turns red and the others stay satisfied. In the Assembly panel you can drag a part with the mouse: it moves only in the directions its mates leave free. When a part's project changes, the panel offers <b>Update</b>; mates are kept, because their faces are stored in the part's own coordinates.</p>
+    <p>Turn on <b>Check collisions</b> in the Assembly panel to list parts that overlap after each change, with the overlap volume.</p>
+    <p><b>Joint</b> (<kbd>J</kbd>) positions one body against another. Mate a face to a face, or a pin to a hole. Revolute and slider joints can be animated. <b>Interference</b> lists the volume where bodies overlap and shows it in red.</p>
+
+    <h2 id="inspect">Inspecting parts</h2>
+    <ul>
+      <li><b>Measure</b> (<kbd>I</kbd>): lengths, radii and areas, plus the distance and angle between two picks.</li>
+      <li><b>Section</b>: a live section plane through the model, with capped cuts.</li>
+      <li><b>Bill of materials</b> (Inspect ▸ more): every body's material, volume, mass, area and size. You can copy it or download it as CSV.</li>
+      <li><b>Wall thickness</b> (Inspect ▸ more): colours the model by how thick the material is under each point of the surface, measured straight into the part. Set a minimum wall: anything thinner turns red, and the panel shows the thinnest wall and how much of the surface is below the minimum. Use it for moulded and printed parts, and to find thick sections that could sink or warp.</li>
+      <li><b>3D print check</b> (Inspect ▸ more): choose the build direction and the overhang limit. Faces that need support are red, borderline faces amber and the face on the build plate blue. The panel lists each body's size, whether it fits the build volume you pick, whether its mesh is watertight, its overhang area, and an estimate of the filament it needs.</li>
+      <li><b>Draft analysis</b>, <b>zebra</b> and <b>isophotes</b> work on solids as well as surfaces. See <a href="surfacing.html#evaluation">Surfacing</a>.</li>
+    </ul>
+  </article>
+</div>

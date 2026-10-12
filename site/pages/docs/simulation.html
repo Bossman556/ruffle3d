@@ -1,0 +1,100 @@
+<!-- {"title": "Simulation — Ruffle3D documentation", "description": "Static stress analysis in Ruffle3D: fixed supports, forces and pressures, meshing, von Mises stress, displacement, safety factor and reports.", "section": "docs"} -->
+<div class="container doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+    <h4>Documentation</h4>
+    <a href="index.html">Getting started</a>
+    <a href="modelling.html">Sketching and modelling</a>
+    <a href="surfacing.html">Surfacing</a>
+    <a href="simulation.html" aria-current="page">Simulation</a>
+    <a href="manufacture.html">Manufacture (CNC)</a>
+    <a href="files.html">Projects, import and export</a>
+    <a href="shortcuts.html">Keyboard shortcuts</a>
+    <h4>On this page</h4>
+    <a href="#study">Setting up a study</a>
+    <a href="#loads">Supports and loads</a>
+    <a href="#solve">Meshing and solving</a>
+    <a href="#results">Reading the results</a>
+    <a href="#modal">Natural frequencies</a>
+    <a href="#generative">Generative design</a>
+    <a href="#buckling">Buckling</a>
+    <a href="#plastic">Yielding</a>
+    <a href="#thermal">Thermal</a>
+    <a href="#accuracy">Accuracy and limits</a>
+  </nav>
+  <article class="prose">
+    <h1>Simulation</h1>
+    <p>The <b>Simulate</b> workspace runs three kinds of study on one solid body. Choose the study at the left of the toolbar or at the top of the panel:</p>
+    <ul>
+      <li><b>Static</b>: stress and deflection under loads. Use it to find weak spots and check that a part is strong enough.</li>
+      <li><b>Modal</b>: the part's natural frequencies and how it vibrates at each one.</li>
+      <li><b>Generative</b>: lets the computer remove the material that carries no load, to show you a lighter, stiffer shape.</li>
+      <li><b>Thermal</b>: the temperatures a part settles at with heat sources, fixed temperatures and cooling.</li>
+    </ul>
+
+    <h2 id="study">Setting up a study</h2>
+    <ol>
+      <li>Give the body a physical material in the Design workspace (<b>Modify ▸ Physical Material</b>). The material sets the stiffness (Young's modulus and Poisson's ratio) and the strength used for the safety factor.</li>
+      <li>Open <b>Simulate</b> from the workspace switch at the top of the window and choose the body in the panel, or click it in the viewport.</li>
+      <li>Add at least one fixed support and one load, then choose <b>Solve</b>.</li>
+    </ol>
+    <p>The study is saved with the project. If you change the model, the results are marked as out of date until you solve again.</p>
+
+    <h2 id="loads">Supports and loads</h2>
+    <table class="data">
+      <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td>Fixed</td><td>Holds the faces you click completely still, like a bolted or welded joint.</td></tr>
+        <tr><td>Force</td><td>A total force in newtons, shared over the faces you click. It can act along X, Y or Z, or straight into each face.</td></tr>
+        <tr><td>Pressure</td><td>A pressure in MPa (N/mm²) that pushes into the faces you click. A negative pressure pulls.</td></tr>
+      </tbody>
+    </table>
+    <p>Click a selected face again to remove it. Each load has its own value, direction and faces, and you can add as many as you need.</p>
+
+    <h2 id="solve">Meshing and solving</h2>
+    <p>Ruffle3D fills the body with small cubic elements and solves the stiffness equations with a multigrid solver. <b>Coarse</b> (about 6,000 elements) is good for a first look, <b>Medium</b> (about 20,000) for most parts, and <b>Fine</b> (about 55,000) for thin walls and small features. A medium study usually solves in a few seconds. The solver runs in the background, so you can keep working, or cancel it.</p>
+
+    <h2 id="results">Reading the results</h2>
+    <ul>
+      <li><b>Stress</b> shows von Mises stress in MPa. Red areas carry the most load.</li>
+      <li><b>Displacement</b> shows how far each point moves.</li>
+      <li><b>Safety</b> shows the material strength divided by the stress. Red is below 1, which means the part will yield, or crack if the material is brittle. Blue is 4 or more.</li>
+      <li><b>Deformed shape</b> shows the part bent by its loads: at true scale, or exaggerated so small movements are visible.</li>
+    </ul>
+    <p>The panel lists the peak stress, the stress at the supports, the largest displacement and the lowest safety factor. <b>Report</b> saves an HTML report with a picture of the result, the material, loads, mesh and solver details.</p>
+    <img class="screenshot" src="../assets/img/screens/simulation.jpg" width="2000" height="1250" alt="Von Mises stress on a cantilevered beam in the Simulate workspace" loading="lazy" />
+
+    <h2 id="modal">Natural frequencies</h2>
+    <p>Choose <b>Modal</b>, add the fixed supports (loads aren't needed), pick how many modes you want and choose <b>Solve</b>. The panel lists each mode's frequency and the direction it mainly moves in. Click a mode to show it, and choose <b>Animate</b> to watch it vibrate. The colours show how far each point moves; mode shapes are scaled to fit, so only their pattern matters.</p>
+    <p>Keep the lowest frequency well away from the vibrations the part sees in use, such as a motor's running speed or a fan's blade-pass frequency, to avoid resonance. Stiffer or lighter designs have higher frequencies. For a steel cantilever, Ruffle3D's first frequency comes within 1% of beam theory.</p>
+
+    <h2 id="generative">Generative design</h2>
+    <p>Choose <b>Generative</b>, add the supports and loads, and set how much of the material to keep. <b>Generate</b> then repeatedly solves the part and moves material to where it carries the most load, which is known as topology optimisation. Faces with supports and loads always keep their material. A coarse study usually takes about a minute.</p>
+    <img class="screenshot" src="../assets/img/screens/generative.jpg" width="2000" height="1250" alt="Generative design result over a ghosted copy of the original arm" loading="lazy" />
+    <p>The result appears over a faint copy of the original part, with the share of material kept and how much of the full part's stiffness it keeps. Choose <b>Add to model</b> to add it as a body you can render, measure, simulate or 3D print, or <b>STL</b> to download it. The shape is a guide: most designers model a clean, manufacturable version over it.</p>
+
+    <h2 id="buckling">Buckling</h2>
+    <p>The <b>Buckling</b> study finds the load at which a slender part, such as a column, strut or thin wall, buckles sideways under the supports and loads you set up. It reports a <b>buckling safety factor</b>: the number you multiply your loads by to make the part buckle, with the critical load in newtons. Select a mode to see its buckled shape, and animate it. This is linear (eigenvalue) buckling: checked against Euler's formula for a steel column, the result agrees within 1%. Real parts with small imperfections usually buckle earlier, so keep a factor of 3 or more.</p>
+
+    <h2 id="plastic">Yielding (plasticity)</h2>
+    <p>In the Static study, turn on <b>Material yielding</b> to model metals and plastics above their yield strength. The material follows a bilinear curve: elastic up to the yield strength, then a small hardening slope. The stress is capped near the yield strength, the deflection grows where material yields, and the <b>Plastic</b> view shows the permanent strain. The panel shows how much material yielded and the deflection a purely elastic analysis would give. When the loads pass the part's collapse load, the result says so. The model assumes the load increases steadily (no unloading or cycling).</p>
+
+    <h2 id="thermal">Thermal</h2>
+    <p>Choose <b>Thermal</b> and add thermal loads from the toolbar:</p>
+    <ul>
+      <li><b>Temperature</b> holds faces at a fixed temperature, such as a part bolted to a large cold frame.</li>
+      <li><b>Heat</b> puts a power in watts in through faces, such as a chip, an LED or a motor.</li>
+      <li><b>Convection</b> cools faces to the surrounding air or fluid. Set the film coefficient <i>h</i> and the ambient temperature. Typical values are 5–10 W/m²·K for still air, 25–100 with a fan, and 500 or more for flowing water.</li>
+    </ul>
+    <p>Turn on <b>Transient</b> to see how temperatures change over time instead: set a starting temperature, a duration and a number of time steps. Drag the <b>Time</b> slider to see the part at any moment; a chart shows the highest, average and lowest temperature over the run. Heat capacity comes from each material's density and specific heat. Checked against the exact solution for a block cooling by convection, the result agrees within 0.5%.</p>
+    <p>Without Transient, the result is the steady state: the temperatures the part reaches after running for a long time. The panel shows the highest and lowest temperatures, the heat going in, and the heat leaving through fixed-temperature faces; the rest leaves by convection. Each material has a thermal conductivity, which you set with its physical material. Radiation and contact resistance between parts are not included. Checked against hand calculations for a bar and a convection-cooled plate, the results agree to within 1%.</p>
+
+    <h2 id="accuracy">Accuracy and limits</h2>
+    <p>For a cantilevered steel beam, Ruffle3D's deflection and bending stress come within a few percent of textbook beam theory. Keep these points in mind:</p>
+    <ul>
+      <li>Deflections are assumed small. Static stress is linear and elastic unless you turn on yielding, which assumes steadily increasing loads. Buckling is linear (eigenvalue) buckling. Contact between parts, radiation, and the size of vibrations under a forcing load (only the natural frequencies and mode shapes) are not modelled.</li>
+      <li>Stress at a sharp inside corner, or at the edge of a fixed face, rises as the mesh gets finer, because in theory it is infinite there. That is why the panel shows the peak stress away from the supports separately. Add fillets to corners where stress matters.</li>
+      <li>Wood and fibre composites are treated as if they had the same properties in every direction.</li>
+      <li>Use the results to compare designs and find weak spots, and confirm critical parts by testing.</li>
+    </ul>
+  </article>
+</div>

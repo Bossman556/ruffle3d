@@ -1,0 +1,262 @@
+<!-- {"title": "Features — Ruffle3D", "description": "Sketching, parametric solid modelling, free-form NURBS surfacing, surface evaluation, assemblies, rendering, engineering drawings and file exchange in Ruffle3D."} -->
+<header class="page-head">
+  <div class="container">
+    <h1>Features</h1>
+    <p>Everything Ruffle3D can do, in one place. Every feature on this page is free for everyone.</p>
+  </div>
+</header>
+
+<div class="container doc-layout">
+  <nav class="doc-nav" aria-label="On this page">
+    <h4>On this page</h4>
+    <a href="#modelling">Solid modelling</a>
+    <a href="#sketching">Sketching</a>
+    <a href="#surfacing">Surfacing</a>
+    <a href="#evaluation">Surface evaluation</a>
+    <a href="#sheet-metal">Sheet metal</a>
+    <a href="#printing">3D printing</a>
+    <a href="#simulation">Simulation</a>
+    <a href="#manufacture">Manufacture</a>
+    <a href="#assemblies">Assemblies</a>
+    <a href="#appearance">Materials and rendering</a>
+    <a href="#drawings">Drawings</a>
+    <a href="#data">Projects and files</a>
+    <a href="#interface">Interface</a>
+    <a href="#specs">Technical specifications</a>
+  </nav>
+  <div class="prose" style="max-width:none">
+    <section id="modelling">
+      <h2 style="margin-top:0">Solid modelling</h2>
+      <p>Parts are built as a history of features on top of the OpenCascade B-rep kernel, the same class of geometry engine used in commercial CAD. The timeline records every step. You can edit any feature, suppress it, roll the model back to an earlier state, or replay the build step by step. When you change something, only the features that depend on it are recomputed.</p>
+      <img class="screenshot" src="assets/img/screens/design-solid.jpg" width="2000" height="1250" alt="Solid modelling in Ruffle3D" loading="lazy" />
+      <div class="cols-2">
+        <div>
+          <h3>Create</h3>
+          <ul>
+            <li>Extrude (one side, symmetric, two sides, with twist), revolve, sweep and loft</li>
+            <li>Holes: simple, counterbore, countersink or tapped (ISO M2–M24, with the tap drill sized and the thread modelled), to a depth or through all</li>
+            <li>Raised or engraved text with a built-in single-stroke engraving font, or your own TTF and OTF fonts</li>
+            <li>Canvas reference images on any origin plane, calibrated to size</li>
+            <li>Modelled ISO metric threads, M2 to M30, on shafts and in holes, right or left hand</li>
+            <li>Coil springs with pitch, turns and wire diameter</li>
+            <li>Box, cylinder, sphere, torus and cone primitives</li>
+            <li>Rectangular and circular patterns, mirror about any plane</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Modify</h3>
+          <ul>
+            <li>Fillet and chamfer edges; shell with chosen open faces</li>
+            <li>Press-pull planar faces; draft faces for moulding</li>
+            <li>Join, cut and intersect bodies; split a body with a plane</li>
+            <li>Move, rotate, copy and scale bodies</li>
+            <li>Offset, angled and mid construction planes</li>
+            <li>Named user parameters and expressions in every numeric field</li>
+            <li>Configurations: named variants (for example S, M and L) with their own parameter values, edited in a table and exported in one go</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="sketching">
+      <h2>Sketching</h2>
+      <p>Sketches are fully parametric. A geometric constraint solver keeps every relationship as you drag geometry. The panel shows how many degrees of freedom are left, and colour shows which curves are free, fully defined or over-constrained.</p>
+      <img class="screenshot" src="assets/img/screens/sketch.jpg" width="2000" height="1250" alt="Sketch mode with constraints and dimensions" loading="lazy" />
+      <ul>
+        <li>Line, two-point and centre rectangle, circle, three-point and centre arc, polygon, slot, spline and point</li>
+        <li>Coincident, on-curve, horizontal, vertical, parallel, perpendicular, tangent, equal, midpoint, concentric, collinear, symmetric and fix constraints</li>
+        <li>One dimension tool for lengths, distances, radii, diameters and angles; values can be expressions such as <code>plate_w / 4</code></li>
+        <li>Trim, offset, fillet, mirror and project model edges into the sketch</li>
+        <li>Real region detection: overlapping curves split into separate profiles you can pick individually</li>
+      </ul>
+    </section>
+
+    <section id="surfacing">
+      <h2>Surfacing</h2>
+      <p>The Surface tab is for free-form product shapes, the kind of work usually done in dedicated industrial surfacing software. Surfaces are NURBS, and you can edit them through their control vertices.</p>
+      <img class="screenshot" src="assets/img/screens/cv-edit.jpg" width="2000" height="1250" alt="Editing the control vertices of a CV surface" loading="lazy" />
+      <div class="cols-2">
+        <div>
+          <h3>Curves and surfaces</h3>
+          <ul>
+            <li>CV curves in 3D, degree 1 to 5, open or periodic. Draw them on principal planes, the view plane, construction planes or onto faces</li>
+            <li>CV surfaces from a plane, or rebuild any face as editable NURBS: exact for NURBS and planar faces, or refit to a CV count you choose</li>
+            <li>Drag CVs freely or along X, Y, Z or the surface normal; select rows and columns; type exact coordinates</li>
+            <li>Skin through any number of sections, rail sweeps, boundary patches with tangent (G1) continuity, extrude, revolve and offset surfaces</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Finishing</h3>
+          <ul>
+            <li>Rolling-ball surface fillets: constant, variable (linear, S-curve or through a middle value) or sized by chord length</li>
+            <li>Trim with sketch or CV curves projected along a curve's plane, a world axis or the current view</li>
+            <li>Trim boundaries are kept as exact lines and arcs in the surface's own coordinates, so they stay correct after CV edits</li>
+            <li>Stitch surfaces into solids; thicken surfaces into walls</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="evaluation">
+      <h2>Surface evaluation</h2>
+      <p>Curvature is computed exactly from the NURBS derivatives, not estimated from the display mesh.</p>
+      <img class="screenshot" src="assets/img/screens/surface-zebra.jpg" width="2000" height="1250" alt="Zebra stripe analysis" loading="lazy" />
+      <table class="data">
+        <tbody>
+          <tr><th>Curvature map</th><td>Mean, Gaussian or maximum curvature, with a sensitivity control and a scale in radius</td></tr>
+          <tr><th>Curvature combs</th><td>Combs on any edge, with the minimum radius reported</td></tr>
+          <tr><th>Zebra stripes</th><td>Reflection stripes for judging continuity across edges</td></tr>
+          <tr><th>Isophotes</th><td>Lines of constant light angle, from a chosen light direction</td></tr>
+          <tr><th>Draft analysis</th><td>Faces coloured by draft angle against a pull direction, for moulded parts</td></tr>
+          <tr><th>Section and measure</th><td>Live section planes with capped cuts; distances, angles, lengths, areas and radii</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="sheet-metal">
+      <h2>Sheet metal</h2>
+      <p>Design brackets, enclosures and covers as folded sheet, then unfold them for the laser or punch.</p>
+      <ul>
+        <li>Base plate from any sketch profile, with thickness, inside bend radius and K-factor</li>
+        <li>Flanges on straight edges of the plate or of other flanges (lips, returns and side tabs): up or down, any angle up to 180°, a set length after the bend and corner insets for relief</li>
+        <li>Flat pattern with exact bend allowance, a bend table (direction, angle, length, allowance) and the overall blank size</li>
+        <li>Holes and cut-outs you add to the plate or the flanges after folding appear in the right place on the flat pattern</li>
+        <li>Flat pattern DXF: the cut outline on layer 0, bend lines on layer BEND</li>
+      </ul>
+    </section>
+
+    <section id="printing">
+      <h2>3D printing</h2>
+      <ul>
+        <li>Wall thickness analysis with a minimum-wall check, for moulding and printing</li>
+        <li>3D print check: overhangs beyond your limit angle are coloured red, with the face on the build plate shown in blue</li>
+        <li>Pick the build direction, and see straight away which faces will need support</li>
+        <li>Per body: size, fit in a compact, standard, large or extra-large build volume, watertight mesh check and overhang area</li>
+        <li>Material estimate in grams and metres of 1.75 mm filament for PLA, PETG, ABS or TPU, at the infill you choose</li>
+        <li>3MF export with colours and units, or binary STL</li>
+      </ul>
+    </section>
+
+    <section id="simulation">
+      <h2>Simulation</h2>
+      <p>Check a part's strength before you make it, in the same application.</p>
+      <img class="screenshot" src="assets/img/screens/simulation.jpg" width="2000" height="1250" alt="Von Mises stress on an aluminium arm in the Simulate workspace" loading="lazy" />
+      <ul>
+        <li>Static stress analysis on any solid body, using its physical material, elastic or with material yielding (plasticity)</li>
+        <li>Buckling: the critical load and buckled shapes of columns, struts and thin walls</li>
+        <li>Transient heat: heating up and cooling down over time, with a time slider and temperature chart</li>
+        <li>Natural frequencies and animated mode shapes, with mass participation for each mode</li>
+        <li>Generative design: topology optimisation that keeps a set share of the material where it carries load, then adds the result to the model or exports it as STL</li>
+        <li>Fixed supports, forces in newtons along an axis or into a face, and pressures in MPa</li>
+        <li>Coarse, medium and fine meshes, solved in the background by a multigrid solver; a medium study usually takes a few seconds</li>
+        <li>Von Mises stress, displacement and safety factor maps, with true-scale or exaggerated deformed shape</li>
+        <li>Peak stress reported away from the supports, as well as at them</li>
+        <li>Steady-state thermal studies with fixed temperatures, heat sources and convection</li>
+        <li>HTML reports for stress, frequency and thermal studies</li>
+      </ul>
+      <img class="screenshot" src="assets/img/screens/generative.jpg" width="2000" height="1250" alt="Generative design result in the Simulate workspace" loading="lazy" />
+    </section>
+
+    <section id="manufacture">
+      <h2>Manufacture</h2>
+      <p>Take a part from the screen to a CNC mill or router without another program.</p>
+      <img class="screenshot" src="assets/img/screens/manufacture.jpg" width="2000" height="1250" alt="CNC toolpaths on a plate in the Manufacture workspace" loading="lazy" />
+      <ul>
+        <li>Stock from the part with side margins and a top allowance; work origin at the stock's top corner or centre</li>
+        <li>Tool library of flat and ball end mills, face mills and drills with speeds, feeds, step-down, step-over and peck depth</li>
+        <li>Facing, 2D profiles (outside, inside or on the line, to a depth or through), pockets with islands, and peck drilling</li>
+        <li>3D machining of curved parts: Z-level roughing with stock to leave, and parallel finishing with ball end mills</li>
+        <li>Toolpath preview with rapids, an animated tool simulation and per-operation cycle-time estimates</li>
+        <li>G-code for GRBL, LinuxCNC, Mach and Fanuc-style controls, in millimetres with tool changes</li>
+      </ul>
+    </section>
+
+    <section id="assemblies">
+      <h2>Assemblies</h2>
+      <p>Build products from parts. Each part is its own project, placed and fitted with mates that are solved together.</p>
+      <img class="screenshot" src="assets/img/screens/assembly.jpg" width="2000" height="1250" alt="A guide assembly positioned by mates, with the Assembly panel" loading="lazy" />
+      <ul>
+        <li>Components: place other projects in a design, with a stored copy and one-click update when the part changes</li>
+        <li>Mates solved together: mate, flush, concentric, distance, parallel, perpendicular and angle, with offsets</li>
+        <li>Motion limits: distance and angle ranges with end stops</li>
+        <li>Gear, rack-and-pinion and contact mates, and a collision check between parts</li>
+        <li>Degrees-of-freedom readout, grounding, and per-mate conflict reporting</li>
+        <li>Drag parts with the mouse along the directions their mates leave free</li>
+        <li>Rigid, revolute and slider joints: mate a face to a face, or a pin to a hole</li>
+        <li>Offset, angle and flip for each joint, with a motion preview</li>
+        <li>Interference check that lists the overlap volumes and shows them in the viewport</li>
+        <li>Exploded views, radial or along an axis, for images and turntable videos</li>
+        <li>Bill of materials with quantities, material, volume, mass, area and size, exportable as CSV</li>
+      </ul>
+    </section>
+
+    <section id="appearance">
+      <h2>Materials and rendering</h2>
+      <p>The physical material drives mass properties. The appearance is set separately, so you can repaint a part without changing its weight.</p>
+      <img class="screenshot" src="assets/img/screens/appearance.jpg" width="2000" height="1250" alt="Appearance editor with colour swatches, finishes and library" loading="lazy" />
+      <ul>
+        <li>28 physical materials with densities: metals, plastics, elastomers, woods, glass, ceramics and composites</li>
+        <li>44 ready-made appearances, 10 finishes (from matte to chrome and car paint), custom colours, per-face paint and an eyedropper</li>
+        <li>Render workspace with five lighting environments, soft ground shadows, ambient occlusion and turntable</li>
+        <li>Decals: logos, labels and graphics projected onto faces, following gentle curves</li>
+        <li>Image capture up to 4K, with an optional transparent background</li>
+        <li>Turntable videos (WebM) at 1080p, 720p, square or vertical, rendered frame by frame</li>
+      </ul>
+    </section>
+
+    <section id="drawings">
+      <h2>Drawings</h2>
+      <img class="screenshot" src="assets/img/screens/drawing.jpg" width="2000" height="1250" alt="Engineering drawing" loading="lazy" />
+      <ul>
+        <li>Third-angle front, top, right and isometric views with hidden-line removal</li>
+        <li>Section views A–A and B–B with hatched cut faces and section lines on the parent view</li>
+        <li>Hole callouts: centre marks, letter tags and a hole table with through, blind, counterbore and countersink sizes</li>
+        <li>Your own dimensions (linear, aligned, diameter, radius, angle) with tolerances, notes with leaders, GD&amp;T feature control frames and datums</li>
+        <li>Parts list with material, mass and quantity, and numbered item balloons for assemblies</li>
+        <li>Automatic scale and overall dimensions</li>
+        <li>Title block with material, computed mass, units, sheet size and date</li>
+        <li>A4, A3, A2 and Letter sheets; export as SVG, print or save as PDF</li>
+      </ul>
+    </section>
+
+    <section id="data">
+      <h2>Projects and files</h2>
+      <img class="screenshot" src="assets/img/screens/dashboard.jpg" width="2000" height="1250" alt="Project dashboard" loading="lazy" />
+      <ul>
+        <li>Projects are stored on your computer and saved automatically, with thumbnails</li>
+        <li>Named versions that you can restore at any time</li>
+        <li>Import STEP, STL and DXF; export STEP (multi-body), STL, 3MF with colours, GLB, OBJ, PNG and WebM video</li>
+        <li>DXF in and out for laser cutting and CNC: import 2D drawings into sketches (lines, arcs, polylines, splines, ellipses and blocks), and export any flat face or sketch</li>
+        <li>Download project files to back up a design or move it to another computer</li>
+        <li>Millimetres, centimetres, metres or inches per document</li>
+      </ul>
+    </section>
+
+    <section id="interface">
+      <h2>Interface</h2>
+      <img class="screenshot screenshot-light" src="assets/img/screens/light-theme.jpg" width="2000" height="1250" alt="Ruffle3D in the light theme" loading="lazy" />
+      <ul>
+        <li>Dark, light or system theme; eight accent colours; optional colour-coded tool categories</li>
+        <li>Command search (<kbd>Ctrl</kbd> <kbd>K</kbd>) for every command, action and feature</li>
+        <li>Four mouse presets, so the orbit and pan buttons match the CAD program you already know</li>
+        <li>A contextual inspector that shows the options for whatever you are doing</li>
+      </ul>
+    </section>
+
+    <section id="specs">
+      <h2>Technical specifications</h2>
+      <table class="data specs">
+        <tbody>
+          <tr><th>Geometry kernel</th><td>OpenCascade (B-rep, NURBS), compiled to WebAssembly and run in a background thread</td></tr>
+          <tr><th>Rendering</th><td>WebGL 2 via three.js; physically based materials</td></tr>
+          <tr><th>Import</th><td>STEP (.step, .stp), STL, DXF (R12 and later)</td></tr>
+          <tr><th>Export</th><td>STEP, STL, 3MF, DXF, GLB, OBJ, PNG, WebM video, SVG, PDF (via print), CSV bills of materials</td></tr>
+          <tr><th>Units</th><td>mm, cm, m, in</td></tr>
+          <tr><th>Platforms</th><td>Windows 10 and 11, macOS 12 or newer, Linux; also runs in Chrome, Edge, Firefox and Safari</td></tr>
+          <tr><th>Data storage</th><td>On your computer (browser storage for the app's address); no cloud account</td></tr>
+          <tr><th>Offline use</th><td>Yes, with the download package or the browser-installed app</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</div>
