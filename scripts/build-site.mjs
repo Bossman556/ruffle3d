@@ -34,6 +34,26 @@ const ctx = {
     })),
   },
 };
+// the best download per system: the desktop installer when one has been built, else the portable zip
+const STEPS = {
+  windows: {
+    installer: '<li>Download <b>Ruffle3D Setup</b> and open it.</li><li>Choose where to install, then <b>Install</b>. You get a Start menu entry and a desktop shortcut.</li><li>Ruffle3D starts when setup finishes. Uninstall any time from <b>Settings ▸ Apps</b>.</li>',
+    zip: '<li>Download the .zip and choose <b>Extract all</b>.</li><li>Open the folder and double-click <code>Start Ruffle3D (Windows).cmd</code>.</li><li>Ruffle3D opens in your default browser. Keep the small console window open while you work.</li>',
+  },
+  mac: {
+    installer: '<li>Download the .dmg and open it.</li><li>Drag <b>Ruffle3D</b> into <b>Applications</b>.</li><li>Open Ruffle3D from Applications or Launchpad.</li>',
+    zip: '<li>Download the .zip. Safari unzips it automatically.</li><li>Right-click <code>Start Ruffle3D (macOS).command</code> and choose <b>Open</b>. You only need to do this the first time.</li><li>Ruffle3D opens in your default browser. Needs Node.js or Python 3.</li>',
+  },
+  linux: {
+    installer: '<li>Download the .AppImage.</li><li>Make it executable: <code>chmod +x Ruffle3D-*.AppImage</code>.</li><li>Run it. On Debian or Ubuntu you can install the .deb instead.</li>',
+    zip: '<li>Download and unzip the package.</li><li>Run <code>./start-ruffle3d.sh</code> from the folder.</li><li>Ruffle3D opens in your default browser. Needs Python 3 or Node.js.</li>',
+  },
+};
+ctx.dl = Object.fromEntries(['windows', 'mac', 'linux'].map((os) => {
+  const ins = release.installers?.[os], z = ctx.release[os];
+  const pick = ins ? { file: ins.file, sha256: ins.sha256, sizeMB: (ins.bytes / 1e6).toFixed(1), href: `downloads/${ins.file}` } : z;
+  return [os, { ...pick, kind: ins ? 'Installer' : 'Portable package', button: ins ? `Download for ${{ windows: 'Windows', mac: 'macOS', linux: 'Linux' }[os]}` : `Download portable package`, steps: STEPS[os][ins ? 'installer' : 'zip'], portable: ins ? `<p class="small muted" style="margin-top:8px">Prefer not to install? <a href="${z.href}" download>Portable package</a> (${z.sizeMB} MB, runs in your browser).</p>` : '<!-- -->' }];
+}));
 const get = (obj, key) => key.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
 const fill = (html, extra = {}) => html.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, key) => {
   const v = get(extra, key) ?? get(ctx, key);

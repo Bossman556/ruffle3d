@@ -13,26 +13,29 @@
         <h2>Ruffle3D {{release.version}}</h2>
         <p class="muted" style="margin:0">Released {{release.date}} · <a href="changelog.html">Release notes</a></p>
       </div>
-      <a class="button button-dark" href="#packages" data-os-label data-href-windows="{{release.windows.href}}" data-href-mac="{{release.mac.href}}" data-href-linux="{{release.linux.href}}">Choose your system</a>
+      <a class="button button-dark" href="#packages" data-os-label data-href-windows="{{dl.windows.href}}" data-href-mac="{{dl.mac.href}}" data-href-linux="{{dl.linux.href}}">Choose your system</a>
     </div>
     <div class="cols-3 packages" id="packages">
       <div class="package" data-os="windows">
         <h3>Windows <span class="badge">Your system</span></h3>
-        <p class="muted small">Windows 10 and 11 · {{release.windows.sizeMB}} MB</p>
-        <a class="button button-outline button-block" href="{{release.windows.href}}" download>Download for Windows</a>
-        <p class="checksum">SHA-256 {{release.windows.sha256}}</p>
+        <p class="muted small">{{dl.windows.kind}} · Windows 10 and 11 · {{dl.windows.sizeMB}} MB</p>
+        <a class="button button-outline button-block" href="{{dl.windows.href}}" download>{{dl.windows.button}}</a>
+        <p class="checksum">SHA-256 {{dl.windows.sha256}}</p>
+        {{dl.windows.portable}}
       </div>
       <div class="package" data-os="mac">
         <h3>macOS <span class="badge">Your system</span></h3>
-        <p class="muted small">macOS 12 or newer, Intel and Apple silicon · {{release.mac.sizeMB}} MB</p>
-        <a class="button button-outline button-block" href="{{release.mac.href}}" download>Download for macOS</a>
-        <p class="checksum">SHA-256 {{release.mac.sha256}}</p>
+        <p class="muted small">{{dl.mac.kind}} · macOS 12 or newer, Intel and Apple silicon · {{dl.mac.sizeMB}} MB</p>
+        <a class="button button-outline button-block" href="{{dl.mac.href}}" download>{{dl.mac.button}}</a>
+        <p class="checksum">SHA-256 {{dl.mac.sha256}}</p>
+        {{dl.mac.portable}}
       </div>
       <div class="package" data-os="linux">
         <h3>Linux <span class="badge">Your system</span></h3>
-        <p class="muted small">x64 and ARM64 · {{release.linux.sizeMB}} MB</p>
-        <a class="button button-outline button-block" href="{{release.linux.href}}" download>Download for Linux</a>
-        <p class="checksum">SHA-256 {{release.linux.sha256}}</p>
+        <p class="muted small">{{dl.linux.kind}} · x64 and ARM64 · {{dl.linux.sizeMB}} MB</p>
+        <a class="button button-outline button-block" href="{{dl.linux.href}}" download>{{dl.linux.button}}</a>
+        <p class="checksum">SHA-256 {{dl.linux.sha256}}</p>
+        {{dl.linux.portable}}
       </div>
     </div>
     <p class="small muted" style="margin-top:16px">Installing on several kinds of computer? <a href="{{release.href}}" download>Download the all-platforms package</a> ({{release.sizeMB}} MB, SHA-256 <code class="hash">{{release.sha256}}</code>).</p>
@@ -47,29 +50,23 @@
       <div class="os-card" data-os="windows">
         <h3>Windows <span class="badge">Your system</span></h3>
         <ol class="os-steps">
-          <li>Download the .zip and choose <b>Extract all</b>.</li>
-          <li>Open the folder and double-click <code>Start Ruffle3D (Windows).cmd</code>.</li>
-          <li>Ruffle3D opens in your default browser. Keep the small console window open while you work.</li>
+          {{dl.windows.steps}}
         </ol>
-        <p class="small muted">If Windows SmartScreen appears, choose <b>More info</b> and then <b>Run anyway</b>. The launcher only starts a local web server on your computer.</p>
+        <p class="small muted">If Windows SmartScreen appears, choose <b>More info</b> and then <b>Run anyway</b>. This version is not yet code-signed.</p>
       </div>
       <div class="os-card" data-os="mac">
         <h3>macOS <span class="badge">Your system</span></h3>
         <ol class="os-steps">
-          <li>Download the .zip. Safari unzips it automatically.</li>
-          <li>Right-click <code>Start Ruffle3D (macOS).command</code> and choose <b>Open</b>. You only need to do this the first time.</li>
-          <li>Ruffle3D opens in your default browser.</li>
+          {{dl.mac.steps}}
         </ol>
-        <p class="small muted">The macOS launcher needs Node.js or Python 3. If neither is installed, use the browser install below.</p>
+        <p class="small muted">If macOS says it can't check the app, right-click it and choose <b>Open</b> the first time.</p>
       </div>
       <div class="os-card" data-os="linux">
         <h3>Linux <span class="badge">Your system</span></h3>
         <ol class="os-steps">
-          <li>Download and unzip the package.</li>
-          <li>Run <code>./start-ruffle3d.sh</code> from the folder.</li>
-          <li>Ruffle3D opens in your default browser.</li>
+          {{dl.linux.steps}}
         </ol>
-        <p class="small muted">Needs Python 3 or Node.js. Most distributions include Python 3.</p>
+        
       </div>
     </div>
   </div>
@@ -93,12 +90,12 @@
       <table class="data specs">
         <tbody>
           <tr><th>Operating system</th><td>Windows 10 or 11 · macOS 12 Monterey or newer · Linux (x64 or ARM64) with a desktop environment</td></tr>
-          <tr><th>Browser engine</th><td>Chrome or Edge 110+, Firefox 115+, or Safari 16.4+. The launchers use your default browser.</td></tr>
+          <tr><th>Browser engine</th><td>Built into the desktop app. The portable packages and the web version use Chrome or Edge 110+, Firefox 115+, or Safari 16.4+.</td></tr>
           <tr><th>Graphics</th><td>WebGL 2 capable GPU; integrated graphics are fine for most parts</td></tr>
           <tr><th>Memory</th><td>4 GB minimum, 8 GB recommended for large assemblies</td></tr>
-          <tr><th>Disk space</th><td>About 30 MB, plus your projects</td></tr>
+          <tr><th>Disk space</th><td>About 250 MB for the desktop app (30 MB for the portable package), plus your projects</td></tr>
           <tr><th>Input</th><td>A mouse with a scroll wheel is recommended; trackpads work</td></tr>
-          <tr><th>macOS and Linux launchers</th><td>Node.js 18+ or Python 3.8+</td></tr>
+          <tr><th>Portable packages (macOS and Linux)</th><td>Node.js 18+ or Python 3.8+</td></tr>
         </tbody>
       </table>
     </div>
@@ -107,9 +104,9 @@
     <div class="table-wrap" style="max-width:860px">
       <table class="data">
         <tbody>
-          <tr><th style="width:140px">Windows</th><td><code>Get-FileHash .\{{release.windows.file}} -Algorithm SHA256</code></td></tr>
-          <tr><th>macOS</th><td><code>shasum -a 256 {{release.mac.file}}</code></td></tr>
-          <tr><th>Linux</th><td><code>sha256sum {{release.linux.file}}</code></td></tr>
+          <tr><th style="width:140px">Windows</th><td><code>Get-FileHash .\{{dl.windows.file}} -Algorithm SHA256</code></td></tr>
+          <tr><th>macOS</th><td><code>shasum -a 256 {{dl.mac.file}}</code></td></tr>
+          <tr><th>Linux</th><td><code>sha256sum {{dl.linux.file}}</code></td></tr>
         </tbody>
       </table>
     </div>

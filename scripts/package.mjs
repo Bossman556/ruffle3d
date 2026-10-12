@@ -8,6 +8,7 @@ import { build } from 'vite';
 import { readFileSync, writeFileSync, rmSync, cpSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { zip } from './zip.mjs';
@@ -104,7 +105,7 @@ const launch = {
 };
 const downloads = path.join(site, 'downloads');
 mkdirSync(downloads, { recursive: true });
-for (const f of readdirSync(downloads)) if (/^Ruffle3D-.*\.zip$/.test(f)) rmSync(path.join(downloads, f));
+for (const f of readdirSync(downloads)) if (/^Ruffle3D-.*\.(zip|exe|dmg|AppImage|deb)$/.test(f)) rmSync(path.join(downloads, f));
 const write = (file, entries) => {
   const buf = zip(entries);
   writeFileSync(path.join(downloads, file), buf);
@@ -114,7 +115,27 @@ const write = (file, entries) => {
 const platforms = {};
 for (const [os, extra] of Object.entries(launch)) platforms[os] = write(`${top}-${os}.zip`, [...common, ...extra]);
 const all = write(`${top}.zip`, [...common, ...launch.windows, ...launch.mac, launch.linux[0]]);
-const info = { version, ...all, date: new Date().toISOString().slice(0, 10), platforms };
+// desktop installers (Electron): the Windows setup is built here on Windows; macOS and Linux builds
+// run on those systems (see .github/workflows/desktop.yml). Skip with --no-installer.
+const installers = {};
+if (!process.argv.includes('--no-installer')) {
+  const targets = { win32: '--win', darwin: '--mac', linux: '--linux' }[process.platform];
+  console.log('Building the desktop installer…');
+  // build outside synced folders (OneDrive and similar lock files while the builder renames them)
+  const out = path.join(process.env.LOCALAPPDATA || tmpdir(), 'ruffle3d-build', 'release');
+  rmSync(out, { recursive: true, force: true });
+  const r = spawnSync(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['electron-builder', targets, '--publish', 'never', `--config.directories.output="${out}"`], { cwd: root, stdio: 'inherit', shell: process.platform === 'win32', env: { ...process.env, CSC_IDENTITY_AUTO_DISCOVERY: process.env.CSC_LINK ? 'true' : 'false' } });
+  if (r.status !== 0) throw new Error('The desktop installer build failed');
+  for (const f of readdirSync(out)) {
+    if (!/\.(exe|dmg|AppImage|deb)$/.test(f)) continue;
+    const buf = readFileSync(path.join(out, f));
+    writeFileSync(path.join(downloads, f), buf);
+    const os = /\.exe$/.test(f) ? 'windows' : /\.dmg$/.test(f) ? 'mac' : /\.deb$/.test(f) ? 'linuxDeb' : 'linux';
+    installers[os] = { file: f, bytes: buf.length, sha256: createHash('sha256').update(buf).digest('hex') };
+    console.log(`website/downloads/${f} (${(buf.length / 1e6).toFixed(1)} MB)`);
+  }
+}
+const info = { version, ...all, date: new Date().toISOString().slice(0, 10), platforms, installers };
 writeFileSync(path.join(downloads, 'latest.json'), JSON.stringify(info, null, 2));
 const file = all.file, zipBuf = { length: all.bytes };
 console.log(`website/app/ updated · website/downloads/${file} (${(zipBuf.length / 1e6).toFixed(1)} MB)`);

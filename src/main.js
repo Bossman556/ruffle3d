@@ -25,7 +25,7 @@ import { Simulation } from './simulate.js';
 import { CanvasManager, canvasList } from './canvas.js';
 import { DecalManager, decalList } from './decals.js';
 import { CamWorkspace } from './cam.js';
-import { requestPersistence, writeToFolder } from './backup.js';
+import { requestPersistence, writeToFolder, backupAll } from './backup.js';
 import { faceSigFromMesh, edgeSigFromSegments } from './picksig.js';
 import { AssemblyTools } from './assembly.js';
 
@@ -34,6 +34,18 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const fmt = (x, d = 2) => (Number.isFinite(x) ? (+x.toFixed(d)).toLocaleString(undefined, { maximumFractionDigits: d }) : '–');
 const LEGACY_KEY = 'ruffle3d.autosave.v1';
 const LAST_KEY = 'ruffle3d.lastProject';
+
+// loading screen (markup in index.html): progress 0–1 and a status line; a null text closes it
+function splash(p, text) {
+  const el = document.getElementById('splash');
+  if (!el) return;
+  const bar = el.querySelector('.sp-bar');
+  if (p != null) { bar.classList.remove('indet'); bar.querySelector('i').style.width = `${Math.round(Math.max(0.04, Math.min(1, p)) * 100)}%`; }
+  if (text === null) { el.classList.add('done'); setTimeout(() => el.remove(), 600); return; }
+  if (text) el.querySelector('.sp-status').textContent = text;
+}
+{ const v = document.getElementById('sp-version'); if (v) v.textContent = `Version ${__APP_VERSION__}`; }
+splash(0.06, 'Loading the interface');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let fidSeq = 0;
@@ -162,6 +174,9 @@ class App {
     try { this.designTab = localStorage.getItem('ruffle3d.designTab') || 'solid'; } catch { this.designTab = 'solid'; }
     this.applyTheme(false);
     this.kernel = new Kernel();
+    this.kernel.onBoot = (p, text) => splash(p, text);
+    // desktop app: native menu commands
+    window.ruffleDesktop?.onMenu((cmd) => this.menuCommand(cmd));
     this.vp = new Viewport($('#viewport'), this.prefs);
     this.applyTheme(false);
     this.sketcher = new Sketcher(this.vp, {
@@ -207,6 +222,25 @@ class App {
     this.startup();
   }
 
+  menuCommand(cmd) {
+    if (cmd !== 'home' && cmd !== 'new' && cmd !== 'backup' && cmd !== 'openfile' && cmd !== 'prefs' && cmd !== 'shortcuts' && this.home.isOpen) this.home.close?.();
+    const act = {
+      new: () => this.home.open('templates'), home: () => this.home.open(), openfile: () => this.openFile(),
+      save: () => { this.scheduleSave(true); this.toast('Saved', 'ok'); }, version: () => this.saveVersion(),
+      'export:step': () => this.exportBodies('step'), 'export:stl': () => this.exportBodies('stl'),
+      backup: async () => {
+        try {
+          const { zip, projects } = await backupAll();
+          this.download(new Blob([zip], { type: 'application/zip' }), `Ruffle3D backup ${new Date().toISOString().slice(0, 10)}.zip`);
+          this.toast(`Backed up ${projects} project${projects === 1 ? '' : 's'} with their versions`, 'ok');
+        } catch (e) { this.toast(`Backup failed: ${e.message}`, 'warn'); }
+      },
+      undo: () => this.undo(), redo: () => this.redo(), palette: () => this.openPalette(), prefs: () => this.openPrefs(),
+      shortcuts: () => this.openPrefs('shortcuts'), fit: () => this.vp.fitAll(), panels: () => this.togglePanels(),
+    }[cmd];
+    act?.();
+  }
+
   async startup() {
     // migrate the single autosave from earlier versions into the project store
     try {
@@ -222,6 +256,11 @@ class App {
     const p = last ? await store.getProject(last).catch(() => null) : null;
     if (p) await this.openProject(p.id);
     else this.home.open();
+    // the loading screen stays until the kernel can build, so the first thing you see works
+    await this.kernel.ready;
+    splash(0.97, p ? `Opening ${p.name}` : 'Ready');
+    window.ruffleDesktop?.ready?.();
+    setTimeout(() => splash(1, null), 250);
   }
 
   // ---------------------------------------------------------------- units & params
@@ -758,7 +797,7 @@ class App {
             <button data-act="savefile">${icon('save')}<span>Download project file</span></button>
             <button data-act="import">${icon('import')}<span>Import STEP / STL…</span></button>
             <hr>
-            <button data-act="install">${icon('download')}<span>Install desktop app</span></button>
+            ${window.ruffleDesktop ? '' : `<button data-act="install">${icon('download')}<span>Install desktop app</span></button>`}
           </div></div>
         <span id="savestate" class="savestate"></span>
       </div>
@@ -2337,7 +2376,7 @@ class App {
       ['Zoom to fit', 'fit', () => this.vp.fitAll(), 'View'], ['Colour each body differently', 'sparkles', () => this.autoColorBodies(), 'Appearance'],
       ['X-ray display', 'xray', () => { this.vp.setDisplayMode(this.vp.displayMode === 'xray' ? 'shadedEdges' : 'xray'); this.syncStyleBtn(); }, 'View'],
       ['Accent colour…', 'appearance', () => this.openPrefs('general'), 'App'],
-      ['Install Ruffle3D as a desktop app', 'download', () => this.installApp(), 'App'],
+      ...(window.ruffleDesktop ? [] : [['Install Ruffle3D as a desktop app', 'download', () => this.installApp(), 'App']]),
       ['Record turntable video', 'camera', () => this.recordVideo(), 'Render'], ['Preferences', 'settings', () => this.openPrefs(), 'App'], ['Keyboard shortcuts', 'keyboard', () => this.openPrefs('shortcuts'), 'App'],
       ['Render workspace', 'render', () => this.setWorkspace('render'), 'Workspace'], ['Design workspace', 'cube', () => this.setWorkspace('design'), 'Workspace'],
     ];
@@ -3408,5 +3447,6 @@ export { TEMPLATES, demoDocument };
 window.app = new App();
 
 // installable, offline-capable desktop app (PWA) in production builds
-if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register('./sw.js').catch(() => {});
+// the desktop app ships its files locally, so only the web version needs the offline cache
+if ('serviceWorker' in navigator && import.meta.env.PROD && !window.ruffleDesktop) navigator.serviceWorker.register('./sw.js').catch(() => {});
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); window.app.installPrompt = e; });

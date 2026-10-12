@@ -5,7 +5,11 @@ export class Kernel {
     this.worker = new Worker(new URL('./cad.worker.js', import.meta.url), { type: 'module' });
     this.seq = 0;
     this.pending = new Map();
+    // start-up progress from the worker (for the loading screen) and a promise for "kernel ready"
+    this.onBoot = null;
+    this.ready = new Promise((r) => (this._ready = r));
     this.worker.onmessage = ({ data }) => {
+      if (data.boot) { if (data.ready) this._ready(); else this.onBoot?.(data.p, data.text); return; }
       const p = this.pending.get(data.id);
       if (!p) return;
       this.pending.delete(data.id);

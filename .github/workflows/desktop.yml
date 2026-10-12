@@ -1,0 +1,61 @@
+# Builds the Ruffle3D desktop installers on each system: Windows (.exe setup), macOS (.dmg) and
+# Linux (.AppImage and .deb). Run it from the Actions tab, or push a tag such as v0.2.0 to also
+# attach the installers to a GitHub release.
+# Code signing is optional: add CSC_LINK / CSC_KEY_PASSWORD (Windows or macOS certificate, base64 or
+# URL) and, for macOS notarisation, APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID as secrets.
+name: Desktop installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vite build
+      - name: Build installer
+        run: npx electron-builder --publish never
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ruffle3d-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Attach installers to the release
+        run: gh release create "$GITHUB_REF_NAME" out/* --repo "$GITHUB_REPOSITORY" --title "Ruffle3D $GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

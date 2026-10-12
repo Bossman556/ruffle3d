@@ -20,6 +20,22 @@ npm run build      # production build in dist/
 npm test           # all test suites (solver, regions, kernel features, templates, measurement, units)
 ```
 
+## Desktop app
+
+Ruffle3D also ships as a normal desktop program (Electron), with a loading screen, native menus, a Start menu entry, a desktop shortcut and an uninstaller.
+
+```bash
+npm run desktop    # build and run the desktop app
+npm run package    # also builds the installer for this system into website/downloads/
+```
+
+- **Windows:** `Ruffle3D-Setup-<version>.exe` (NSIS: choose the folder, Start menu and desktop shortcuts, uninstall from Settings ▸ Apps). Built locally by `npm run package`.
+- **macOS and Linux:** `.dmg`, `.AppImage` and `.deb` are built on those systems by the **Desktop installers** GitHub Actions workflow (`.github/workflows/desktop.yml`); run it from the Actions tab or push a `v*` tag to attach them to a release.
+- **How it works:** `electron/main.cjs` serves `dist/` from a private `app://ruffle3d` origin (so the WebAssembly kernel, workers and IndexedDB behave as in a browser), shows the window when the loading screen has painted, remembers the window size, allows one running copy and opens web links in the default browser. `electron/preload.cjs` passes menu commands to the page.
+- **Loading screen:** the splash in `index.html` paints before any script loads; the CAD worker streams the kernel download and reports progress, and the splash closes when the kernel is ready.
+- **Signing:** set `CSC_LINK` and `CSC_KEY_PASSWORD` (your code-signing certificate) before building and electron-builder signs the installer and the app. Unsigned builds work, but Windows SmartScreen and macOS Gatekeeper warn on first launch.
+- Runtime libraries are listed as devDependencies on purpose: Vite bundles them into `dist/`, so the installer doesn't carry `node_modules`.
+
 ## Website and downloads
 
 The product website is generated from `site/` into `website/`, the folder you deploy:

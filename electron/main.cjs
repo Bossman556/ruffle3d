@@ -1,0 +1,153 @@
+// Ruffle3D desktop app (Electron). Serves the built app (dist/) from a private app:// origin so the
+// WebAssembly kernel, module workers and the project database work exactly as in a browser, shows the
+// window once the loading screen has painted, and adds native menus, window-state memory and a single
+// running instance.
+const { app, BrowserWindow, Menu, protocol, net, shell, dialog } = require('electron');
+const path = require('node:path');
+const fs = require('node:fs');
+const { pathToFileURL } = require('node:url');
+
+const DIST = path.join(__dirname, '..', 'dist');
+const ORIGIN = 'app://ruffle3d';
+const ICON = path.join(__dirname, '..', 'build', 'icon.png');
+const DOCS = 'https://ruffle3d.example/docs/index.html';
+
+protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
+
+if (!app.requestSingleInstanceLock()) app.quit();
+
+// ---------- window state ----------
+const stateFile = () => path.join(app.getPath('userData'), 'window-state.json');
+function loadState() {
+  try { return JSON.parse(fs.readFileSync(stateFile(), 'utf8')); } catch { return { maximized: true }; }
+}
+function saveState(win) {
+  try {
+    const maximized = win.isMaximized();
+    fs.writeFileSync(stateFile(), JSON.stringify({ bounds: maximized ? win.getNormalBounds() : win.getBounds(), maximized }));
+  } catch { /* not critical */ }
+}
+
+let win = null;
+function createWindow() {
+  const st = loadState();
+  win = new BrowserWindow({
+    ...(st.bounds || { width: 1440, height: 900 }),
+    minWidth: 1024,
+    minHeight: 640,
+    show: false,
+    backgroundColor: '#111419',
+    title: 'Ruffle3D',
+    icon: ICON,
+    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
+  });
+  // the loading screen is the page's first paint, so the window never shows blank
+  win.once('ready-to-show', () => { if (st.maximized) win.maximize(); win.show(); });
+  win.on('close', () => saveState(win));
+  // links to the web open in the normal browser; nothing else may open windows or navigate away
+  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
+  win.webContents.on('will-navigate', (e, url) => {
+    if (url.startsWith(ORIGIN)) return;
+    e.preventDefault();
+    if (/^https?:/.test(url)) shell.openExternal(url);
+  });
+  win.loadURL(`${ORIGIN}/index.html`);
+}
+
+// ---------- menus ----------
+// Shortcuts the page already handles are shown in the menu but not captured by it
+// (registerAccelerator: false), so the keys behave the same with or without the menu.
+const send = (cmd) => win?.webContents.send('menu', cmd);
+const shown = (accelerator) => ({ accelerator, registerAccelerator: false });
+function about() {
+  dialog.showMessageBox(win, {
+    type: 'info',
+    title: 'About Ruffle3D',
+    message: `Ruffle3D ${app.getVersion()}`,
+    detail: `Parametric CAD for product design. Free for everyone.\n\nGeometry kernel: OpenCascade (LGPL 2.1)\nElectron ${process.versions.electron} · Chromium ${process.versions.chrome}`,
+    icon: ICON,
+  });
+}
+function buildMenu() {
+  const mac = process.platform === 'darwin';
+  const tpl = [
+    ...(mac ? [{ role: 'appMenu' }] : []),
+    {
+      label: 'File',
+      submenu: [
+        { label: 'New Design…', ...shown('CmdOrCtrl+N'), click: () => send('new') },
+        { label: 'All Projects', click: () => send('home') },
+        { label: 'Open File…', click: () => send('openfile') },
+        { type: 'separator' },
+        { label: 'Save', ...shown('CmdOrCtrl+S'), click: () => send('save') },
+        { label: 'Save Version…', click: () => send('version') },
+        { label: 'Export STEP…', click: () => send('export:step') },
+        { label: 'Export STL…', click: () => send('export:stl') },
+        { type: 'separator' },
+        { label: 'Back Up All Projects…', click: () => send('backup') },
+        { type: 'separator' },
+        mac ? { role: 'close' } : { role: 'quit', label: 'Exit' },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { label: 'Undo', ...shown('CmdOrCtrl+Z'), click: () => send('undo') },
+        { label: 'Redo', ...shown('CmdOrCtrl+Y'), click: () => send('redo') },
+        { type: 'separator' },
+        { role: 'cut' }, { role: 'copy' }, { role: 'paste' },
+        { type: 'separator' },
+        { label: 'Search Commands…', ...shown('CmdOrCtrl+K'), click: () => send('palette') },
+        { label: 'Preferences…', click: () => send('prefs') },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { label: 'Zoom to Fit', ...shown('F6'), click: () => send('fit') },
+        { label: 'Show or Hide Panels', ...shown('Tab'), click: () => send('panels') },
+        { type: 'separator' },
+        { role: 'resetZoom', label: 'Actual Size' }, { role: 'zoomIn' }, { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+        { type: 'separator' },
+        { role: 'reload', label: 'Reload' },
+        { role: 'toggleDevTools', label: 'Developer Tools' },
+      ],
+    },
+    { role: 'windowMenu' },
+    {
+      label: 'Help',
+      submenu: [
+        { label: 'Documentation', click: () => shell.openExternal(DOCS) },
+        { label: 'Keyboard Shortcuts', click: () => send('shortcuts') },
+        { type: 'separator' },
+        { label: 'Open Data Folder', click: () => shell.openPath(app.getPath('userData')) },
+        ...(mac ? [] : [{ type: 'separator' }, { label: 'About Ruffle3D', click: about }]),
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(tpl));
+}
+
+app.on('second-instance', () => {
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.focus();
+});
+
+app.whenReady().then(() => {
+  // serve dist/ (also from inside the packaged asar archive)
+  protocol.handle('app', (req) => {
+    const rel = decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, '') || 'index.html';
+    const file = path.normalize(path.join(DIST, rel));
+    if (!file.startsWith(DIST)) return new Response('Not found', { status: 404 });
+    return net.fetch(pathToFileURL(file).toString());
+  });
+  if (process.platform === 'darwin') app.setAboutPanelOptions({ applicationName: 'Ruffle3D', applicationVersion: app.getVersion(), credits: 'Free for everyone. Geometry kernel: OpenCascade.' });
+  buildMenu();
+  createWindow();
+  app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
+});
+
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

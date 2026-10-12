@@ -17,8 +17,37 @@
         document.documentElement.dataset.theme = t;
       } catch {}
     </script>
+    <style>
+      /* loading screen: inline so it shows before the app's scripts and styles arrive */
+      #splash { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; background: radial-gradient(1200px 700px at 50% 38%, #1e2430 0%, #111419 60%, #0c0e12 100%); color: #e8ebf0; font-family: 'Inter Variable', 'Segoe UI', system-ui, -apple-system, sans-serif; transition: opacity .45s ease, visibility .45s; user-select: none; -webkit-app-region: drag; }
+      html[data-theme='light'] #splash { background: radial-gradient(1200px 700px at 50% 38%, #ffffff 0%, #eef1f5 60%, #e3e7ed 100%); color: #1b1f26; }
+      #splash.done { opacity: 0; visibility: hidden; }
+      #splash .sp-card { display: flex; flex-direction: column; align-items: center; width: min(420px, 86vw); }
+      #splash .sp-logo { width: 84px; height: 84px; filter: drop-shadow(0 10px 28px rgba(242, 113, 28, .35)); animation: sp-float 3.2s ease-in-out infinite; }
+      #splash .sp-name { margin-top: 22px; font-size: 34px; font-weight: 700; letter-spacing: -.02em; }
+      #splash .sp-name span { font-weight: 400; opacity: .55; }
+      #splash .sp-tag { margin-top: 6px; font-size: 13.5px; opacity: .6; }
+      #splash .sp-bar { margin-top: 34px; width: 100%; height: 4px; border-radius: 4px; background: rgba(127, 140, 160, .22); overflow: hidden; }
+      #splash .sp-bar i { display: block; height: 100%; width: 4%; border-radius: 4px; background: linear-gradient(90deg, #ffb35c, #f2711c); transition: width .3s ease; }
+      #splash .sp-bar.indet i { width: 30%; animation: sp-indet 1.3s ease-in-out infinite; }
+      #splash .sp-status { margin-top: 12px; font-size: 12.5px; opacity: .65; min-height: 16px; font-variant-numeric: tabular-nums; }
+      #splash .sp-foot { position: absolute; bottom: 22px; left: 0; right: 0; display: flex; justify-content: center; gap: 14px; font-size: 11.5px; opacity: .45; }
+      @keyframes sp-float { 50% { transform: translateY(-6px); } }
+      @keyframes sp-indet { 0% { transform: translateX(-100%); } 100% { transform: translateX(340%); } }
+      @media (prefers-reduced-motion: reduce) { #splash .sp-logo, #splash .sp-bar.indet i { animation: none; } }
+    </style>
   </head>
   <body>
+    <div id="splash" role="status" aria-live="polite">
+      <div class="sp-card">
+        <svg class="sp-logo" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="spg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb35c"/><stop offset="1" stop-color="#f2711c"/></linearGradient></defs><path d="M12 2.2l8.6 4.9v9.8L12 21.8l-8.6-4.9V7.1z" fill="url(#spg)"/><path d="M3.6 7.2L12 12l8.4-4.8M12 12v9.6" stroke="#fff" stroke-opacity=".85" stroke-width="1.4" fill="none"/></svg>
+        <div class="sp-name">Ruffle<span>3D</span></div>
+        <div class="sp-tag">Parametric CAD for product design</div>
+        <div class="sp-bar indet"><i></i></div>
+        <div class="sp-status">Loading the interface</div>
+      </div>
+      <div class="sp-foot"><span id="sp-version"></span><span>Free for everyone</span><span>OpenCascade kernel</span></div>
+    </div>
     <div id="app">
       <header id="appbar"></header>
       <nav id="toolbar"></nav>

@@ -5,9 +5,32 @@ import { setOC } from 'replicad';
 import { registerFont } from './text.js';
 import { rebuild, meshShape, properties, exportShapes, interference, projectViews, emptyState, measurePicks, hasSolid, curvatureField, curvatureCombs, curvePolyline, faceDXF, flatPattern, sectionView, camToolpaths, drawingHoles, compareWithFeatures, solveAssembly } from './build.js';
 
+// Start-up: download the kernel (reporting progress for the loading screen), then initialise it.
+const boot = (p, text) => self.postMessage({ boot: true, p, text });
 const ready = (async () => {
-  const OC = await opencascade({ locateFile: () => wasmUrl });
+  let wasmBinary;
+  try {
+    const res = await fetch(wasmUrl);
+    const total = +res.headers.get('content-length') || 0;
+    if (res.body && total) {
+      const reader = res.body.getReader(), parts = [];
+      let got = 0, lastSent = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        parts.push(value); got += value.length;
+        if (got - lastSent > total / 100 || got === total) { lastSent = got; boot(0.1 + 0.6 * (got / total), `Loading the geometry kernel · ${(got / 1e6).toFixed(1)} of ${(total / 1e6).toFixed(1)} MB`); }
+      }
+      wasmBinary = new Uint8Array(got);
+      let o = 0;
+      for (const p of parts) { wasmBinary.set(p, o); o += p.length; }
+    } else wasmBinary = new Uint8Array(await res.arrayBuffer());
+  } catch { wasmBinary = undefined; /* fall back to the kernel's own loader */ }
+  boot(0.75, 'Starting the geometry kernel');
+  const OC = await opencascade({ locateFile: () => wasmUrl, ...(wasmBinary ? { wasmBinary: wasmBinary.buffer } : {}) });
   setOC(OC);
+  boot(0.9, 'Kernel ready');
+  self.postMessage({ boot: true, ready: true });
 })();
 
 let last = null; // { states, errors, warnings } of the most recent build
