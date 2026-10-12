@@ -63,7 +63,7 @@ const fill = (html, extra = {}) => html.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, k
 });
 
 // clean generated pages but keep the app build and downloads
-for (const n of existsSync(out) ? readdirSync(out) : []) if (!['app', 'downloads'].includes(n)) rmSync(path.join(out, n), { recursive: true, force: true });
+for (const n of existsSync(out) ? readdirSync(out) : []) if (!['app', 'downloads', '.git', 'README.md'].includes(n)) rmSync(path.join(out, n), { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 cpSync(path.join(src, 'assets'), path.join(out, 'assets'), { recursive: true });
 
