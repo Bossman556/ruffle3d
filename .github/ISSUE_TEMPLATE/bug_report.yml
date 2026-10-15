@@ -1,0 +1,39 @@
+name: Bug report
+description: Something doesn't work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Mounting Bracket template
+        2. Fillet the top edges with 3 mm
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Ruffle3D version
+      description: Shown on the loading screen and in Help ▸ About
+      placeholder: "0.1.0"
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where do you run Ruffle3D?
+      options: [Desktop app (Windows), Desktop app (macOS), Desktop app (Linux), Web app in Chrome or Edge, Web app in Firefox, Web app in Safari, Portable package]
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Project file or screenshots
+      description: Attach a project file (Project ▸ Download project file) or screenshots if you can. They help most.

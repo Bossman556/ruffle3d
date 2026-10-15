@@ -1,7 +1,7 @@
 {
   "name": "Ruffle3D",
   "tagline": "Parametric solid modelling and free-form NURBS surfacing for product design.",
-  "url": "https://ruffle3d.example",
+  "url": "https://ruffle3d-website.vercel.app",
   "company": {
     "legalName": "Ruffle3D",
     "address": "",
@@ -15,5 +15,6 @@
     "security": "security@ruffle3d.example",
     "legal": "legal@ruffle3d.example"
   },
-  "legalUpdated": "12 October 2026"
+  "legalUpdated": "12 October 2026",
+  "repo": "https://github.com/Bossman556/ruffle3d"
 }

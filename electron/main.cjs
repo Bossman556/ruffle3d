@@ -10,7 +10,8 @@ const { pathToFileURL } = require('node:url');
 const DIST = path.join(__dirname, '..', 'dist');
 const ORIGIN = 'app://ruffle3d';
 const ICON = path.join(__dirname, '..', 'build', 'icon.png');
-const DOCS = 'https://ruffle3d.example/docs/index.html';
+const DOCS = 'https://ruffle3d-website.vercel.app/docs/index.html';
+const REPO = 'https://github.com/Bossman556/ruffle3d';
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
 
@@ -64,7 +65,7 @@ function about() {
     type: 'info',
     title: 'About Ruffle3D',
     message: `Ruffle3D ${app.getVersion()}`,
-    detail: `Parametric CAD for product design. Free for everyone.\n\nGeometry kernel: OpenCascade (LGPL 2.1)\nElectron ${process.versions.electron} · Chromium ${process.versions.chrome}`,
+    detail: `Parametric CAD for product design. Free and open source under the GNU GPL v3 or later.\n${REPO}\n\nGeometry kernel: OpenCascade (LGPL 2.1)\nElectron ${process.versions.electron} · Chromium ${process.versions.chrome}`,
     icon: ICON,
   });
 }
@@ -122,6 +123,9 @@ function buildMenu() {
         { label: 'Documentation', click: () => shell.openExternal(DOCS) },
         { label: 'Keyboard Shortcuts', click: () => send('shortcuts') },
         { type: 'separator' },
+        { label: 'Source Code and Contributing', click: () => shell.openExternal(REPO) },
+        { label: 'Report a Problem…', click: () => shell.openExternal(`${REPO}/issues/new/choose`) },
+        { type: 'separator' },
         { label: 'Open Data Folder', click: () => shell.openPath(app.getPath('userData')) },
         ...(mac ? [] : [{ type: 'separator' }, { label: 'About Ruffle3D', click: about }]),
       ],
@@ -144,7 +148,7 @@ app.whenReady().then(() => {
     if (!file.startsWith(DIST)) return new Response('Not found', { status: 404 });
     return net.fetch(pathToFileURL(file).toString());
   });
-  if (process.platform === 'darwin') app.setAboutPanelOptions({ applicationName: 'Ruffle3D', applicationVersion: app.getVersion(), credits: 'Free for everyone. Geometry kernel: OpenCascade.' });
+  if (process.platform === 'darwin') app.setAboutPanelOptions({ applicationName: 'Ruffle3D', applicationVersion: app.getVersion(), credits: 'Free and open source (GPL-3.0-or-later). Geometry kernel: OpenCascade.' });
   buildMenu();
   createWindow();
   app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });

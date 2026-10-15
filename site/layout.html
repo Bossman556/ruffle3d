@@ -32,6 +32,7 @@
         <a data-nav="support" href="{{page.base}}support.html">Support</a>
       </nav>
       <div class="header-actions">
+        <a class="text-link" href="{{repo}}" rel="noopener">GitHub</a>
         <a class="text-link" href="{{page.base}}app/" target="_blank" rel="noopener">Open in browser</a>
         <a class="button button-dark button-small" href="{{page.base}}download.html">Download</a>
       </div>
@@ -58,7 +59,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l8.6 4.9v9.8L12 21.8l-8.6-4.9V7.1z" fill="#ef6c1a"/><path d="M3.6 7.2L12 12l8.4-4.8M12 12v9.6" stroke="#fff" stroke-width="1.5" fill="none"/></svg>
           Ruffle3D
         </a>
-        <p>CAD for product design. Runs on your computer, works offline.</p>
+        <p>Open-source CAD for product design. Runs on your computer, works offline.</p>
         <p class="footer-version">Current version {{release.version}}</p>
       </div>
       <div>
@@ -79,6 +80,8 @@
           <li><a href="{{page.base}}download.html#requirements">System requirements</a></li>
           <li><a href="{{page.base}}support.html">Support</a></li>
           <li><a href="{{page.base}}education.html">Education</a></li>
+          <li><a href="{{repo}}">Source code (GitHub)</a></li>
+          <li><a href="{{repo}}/blob/main/CONTRIBUTING.md">Contribute</a></li>
         </ul>
       </div>
       <div>
@@ -94,7 +97,7 @@
         <h2>Legal</h2>
         <ul>
           <li><a href="{{page.base}}legal/terms.html">Terms of Service</a></li>
-          <li><a href="{{page.base}}legal/eula.html">License Agreement</a></li>
+          <li><a href="{{page.base}}legal/eula.html">License (GPL-3.0)</a></li>
           <li><a href="{{page.base}}legal/privacy.html">Privacy Policy</a></li>
           <li><a href="{{page.base}}legal/cookies.html">Cookie Notice</a></li>
           <li><a href="{{page.base}}legal/open-source.html">Open-source notices</a></li>
@@ -102,7 +105,7 @@
       </div>
     </div>
     <div class="container footer-bottom">
-      <p>© {{year}} {{company.legalName}}. All rights reserved.</p>
+      <p>© {{year}} {{company.legalName}} and contributors. Free and open source under the <a href="{{page.base}}legal/eula.html">GNU GPL v3</a>.</p>
       <p>All trademarks are the property of their respective owners.</p>
     </div>
   </footer>

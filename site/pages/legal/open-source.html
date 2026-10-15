@@ -3,7 +3,7 @@
   <nav class="doc-nav" aria-label="Legal">
     <h4>Legal</h4>
     <a href="terms.html">Terms of Service</a>
-    <a href="eula.html">License Agreement</a>
+    <a href="eula.html">License</a>
     <a href="privacy.html">Privacy Policy</a>
     <a href="cookies.html">Cookie Notice</a>
     <a href="open-source.html" aria-current="page">Open-source notices</a>
@@ -11,6 +11,7 @@
   <article class="prose">
     <h1>Open-source notices</h1>
     <p class="updated">Applies to Ruffle3D {{release.version}}</p>
+    <p>Ruffle3D itself is open source under the <a href="eula.html">GNU General Public License v3 or later</a>; the <a href="{{repo}}">source code is on GitHub</a>.</p>
     <p>Ruffle3D is built with the open-source software listed below. We're grateful to their authors. Each component is used under its own licence. The full licence texts are linked below and are also included in the <code>licenses</code> folder of the download package.</p>
 
     <table class="data">
@@ -20,6 +21,7 @@
         <tr><td><a href="https://replicad.xyz/" rel="noopener">replicad</a></td><td>1.1.0</td><td><a href="../assets/licenses/replicad-MIT.txt">MIT</a></td><td>© 2023 QuaroTech Sàrl</td></tr>
         <tr><td><a href="https://threejs.org/" rel="noopener">three.js</a></td><td>0.186.1</td><td><a href="../assets/licenses/three-MIT.txt">MIT</a></td><td>© 2010–2026 three.js authors</td></tr>
         <tr><td><a href="https://lucide.dev/" rel="noopener">Lucide icons</a></td><td>1.55.0</td><td><a href="../assets/licenses/lucide-ISC.txt">ISC</a></td><td>© 2026 Lucide Icons and Contributors</td></tr>
+        <tr><td><a href="https://www.electronjs.org/" rel="noopener">Electron</a> (desktop app only), including Chromium</td><td>38</td><td>MIT; Chromium under BSD and other licences listed in <code>LICENSES.chromium.html</code> in the app folder</td><td>© Electron contributors, © The Chromium Authors</td></tr>
         <tr><td><a href="https://rsms.me/inter/" rel="noopener">Inter typeface</a></td><td>5.3.0</td><td><a href="../assets/licenses/inter-OFL-1.1.txt">SIL OFL 1.1</a></td><td>© 2016 The Inter Project Authors</td></tr>
       </tbody>
     </table>
@@ -28,6 +30,6 @@
     <p>Ruffle3D uses OpenCascade Technology without modifications, under the GNU Lesser General Public License version 2.1. The library ships as a separate WebAssembly file, <code>app/assets/replicad_single-*.wasm</code>. Ruffle3D loads it at run time, so you may replace it with your own build, modified or not. The source code is available from the OpenCascade project and the replicad-opencascadejs repository linked above. If you'd like a copy of the exact source we used, email <a href="mailto:{{email.legal}}">{{email.legal}}</a> and we'll send it, for no more than the cost of distribution, for at least three years after this release.</p>
 
     <h2>Everything else</h2>
-    <p>The rest of Ruffle3D's code is proprietary to {{company.legalName}}, and licensed to you under the <a href="eula.html">License Agreement</a>. That includes the application, the sketch constraint solver, region detection, the rebuild engine, NURBS editing and surface evaluation.</p>
+    <p>The rest of Ruffle3D's code is proprietary to {{company.legalName}}, and licensed to you under the <a href="eula.html">License</a>. That includes the application, the sketch constraint solver, region detection, the rebuild engine, NURBS editing and surface evaluation.</p>
   </article>
 </div>

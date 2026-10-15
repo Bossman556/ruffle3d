@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://ruffle3d-website.vercel.app/docs/index.html
+    about: How to use Ruffle3D, from first sketch to drawings, simulation and CNC
+  - name: Report a security problem
+    url: https://github.com/Bossman556/ruffle3d/security/advisories/new
+    about: Please report security problems privately, not in public issues

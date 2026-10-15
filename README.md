@@ -6,6 +6,14 @@ Ruffle3D is a parametric 3D CAD tool for product design that runs in the browser
 - **Sketch engine:** a geometric constraint solver (Levenberg–Marquardt, solved per connected component, with degree-of-freedom analysis) and planar region detection, both written for this project.
 - **Viewport:** [Three.js](https://threejs.org), with PBR materials, a ViewCube, section analysis and edge/face picking.
 
+## Open source
+
+Ruffle3D is free and open source under the [GNU General Public License v3.0 or later](LICENSE). You can use it for anything, including commercial work, and study, change and share it. If you distribute a modified version, it must stay open source under the same licence.
+
+Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md) to get set up, and the [code of conduct](CODE_OF_CONDUCT.md). Report bugs and ideas in [issues](https://github.com/Bossman556/ruffle3d/issues), and security problems privately as described in [SECURITY.md](SECURITY.md).
+
+Third-party components keep their own licences: OpenCascade (LGPL-2.1, used as a separate WebAssembly module), replicad (MIT), three.js (MIT), Lucide icons (ISC) and the Inter font (OFL-1.1). Their licence texts are in `site/assets/licenses/`.
+
 ## Run it
 
 ```bash

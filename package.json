@@ -2,6 +2,15 @@
   "name": "ruffle3d",
   "version": "0.1.0",
   "description": "Ruffle3D - a browser-based parametric 3D CAD tool (OpenCascade kernel via replicad, Three.js viewport)",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Bossman556/ruffle3d.git"
+  },
+  "homepage": "https://ruffle3d-website.vercel.app/",
+  "bugs": {
+    "url": "https://github.com/Bossman556/ruffle3d/issues"
+  },
   "type": "module",
   "private": true,
   "scripts": {
@@ -33,7 +42,7 @@
   "build": {
     "appId": "com.ruffle3d.app",
     "productName": "Ruffle3D",
-    "copyright": "Free for everyone",
+    "copyright": "Copyright \u00a9 2026 Ruffle3D contributors. GPL-3.0-or-later",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -66,7 +75,8 @@
       "shortcutName": "Ruffle3D",
       "uninstallDisplayName": "Ruffle3D",
       "runAfterFinish": true,
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "license": "LICENSE"
     },
     "mac": {
       "target": [
