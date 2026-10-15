@@ -34,6 +34,9 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const fmt = (x, d = 2) => (Number.isFinite(x) ? (+x.toFixed(d)).toLocaleString(undefined, { maximumFractionDigits: d }) : '–');
 const LEGACY_KEY = 'ruffle3d.autosave.v1';
 const LAST_KEY = 'ruffle3d.lastProject';
+const SITE = 'https://ruffle3d-website.vercel.app';
+// version strings like 0.10.2 compared part by part
+const newerVersion = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
 
 // loading screen (markup in index.html): progress 0–1 and a status line; a null text closes it
 function splash(p, text) {
@@ -177,6 +180,7 @@ class App {
     this.kernel.onBoot = (p, text) => splash(p, text);
     // desktop app: native menu commands
     window.ruffleDesktop?.onMenu((cmd) => this.menuCommand(cmd));
+    window.ruffleDesktop?.onOpenFile?.((f) => this.openProjectText(f.name, f.text));
     this.vp = new Viewport($('#viewport'), this.prefs);
     this.applyTheme(false);
     this.sketcher = new Sketcher(this.vp, {
@@ -216,10 +220,33 @@ class App {
     this.bindTips();
     this.bindGlobal();
     this.bindViewport();
+    this.bindDrop();
     this.renderToolbar();
     this.refreshAll();
     this.renderRight();
     this.startup();
+  }
+
+  // Update check: reads the website's downloads/latest.json (a plain file, so nothing about the user is
+  // sent) at most once a day, and shows a notice when a newer version is out.
+  async checkUpdates(manual = false) {
+    const KEY = 'ruffle3d.updateCheck';
+    if (!manual) {
+      if (!this.prefs.updates || /^(localhost|127\.)/.test(location.hostname)) return;
+      try { if (Date.now() - (+localStorage.getItem(KEY) || 0) < 864e5) return; } catch { /* no storage */ }
+    }
+    // the web app lives at <site>/app/, so its own site's file is next door; the desktop app asks the website
+    const url = location.protocol.startsWith('http') && /\/app\//.test(location.pathname) ? new URL('../downloads/latest.json', location.href).href : `${SITE}/downloads/latest.json`;
+    let info;
+    try { info = await (await fetch(url, { cache: 'no-store' })).json(); localStorage.setItem(KEY, String(Date.now())); } catch { if (manual) this.toast('Could not reach the Ruffle3D website to check for updates', 'warn'); return; }
+    if (!info?.version || !newerVersion(info.version, __APP_VERSION__)) { if (manual) this.toast(`You have the latest version (${__APP_VERSION__})`, 'ok'); return; }
+    const box = document.createElement('div');
+    box.className = 'toast update-toast';
+    box.innerHTML = `${icon('download')}<span><b>Ruffle3D ${esc(info.version)} is available</b><small>You have ${__APP_VERSION__}.${window.ruffleDesktop ? ' Download the new installer; your projects are kept.' : ' Reload the page to update.'}</small></span>
+      <a class="btn sm" href="${SITE}/changelog.html" target="_blank" rel="noopener">What's new</a>${window.ruffleDesktop ? `<a class="btn sm primary" href="${SITE}/download.html" target="_blank" rel="noopener">Download</a>` : '<button class="btn sm primary" data-reload>Reload</button>'}<button class="iconbtn" data-x aria-label="Dismiss">${icon('close')}</button>`;
+    box.querySelector('[data-x]').onclick = () => box.remove();
+    box.querySelector('[data-reload]')?.addEventListener('click', () => location.reload());
+    $('#toasts').appendChild(box);
   }
 
   menuCommand(cmd) {
@@ -235,7 +262,7 @@ class App {
           this.toast(`Backed up ${projects} project${projects === 1 ? '' : 's'} with their versions`, 'ok');
         } catch (e) { this.toast(`Backup failed: ${e.message}`, 'warn'); }
       },
-      undo: () => this.undo(), redo: () => this.redo(), palette: () => this.openPalette(), prefs: () => this.openPrefs(),
+      undo: () => this.undo(), redo: () => this.redo(), palette: () => this.openPalette(), prefs: () => this.openPrefs(), updates: () => this.checkUpdates(true),
       shortcuts: () => this.openPrefs('shortcuts'), fit: () => this.vp.fitAll(), panels: () => this.togglePanels(),
     }[cmd];
     act?.();
@@ -261,6 +288,20 @@ class App {
     splash(0.97, p ? `Opening ${p.name}` : 'Ready');
     window.ruffleDesktop?.ready?.();
     setTimeout(() => splash(1, null), 250);
+    setTimeout(() => this.checkUpdates(), 4000);
+    // first start after an update: say so once, with a link to the release notes
+    try {
+      const prev = localStorage.getItem('ruffle3d.version');
+      localStorage.setItem('ruffle3d.version', __APP_VERSION__);
+      if (prev && prev !== __APP_VERSION__ && newerVersion(__APP_VERSION__, prev)) setTimeout(() => {
+        const box = document.createElement('div');
+        box.className = 'toast update-toast';
+        box.innerHTML = `${icon('sparkles')}<span><b>Updated to Ruffle3D ${__APP_VERSION__}</b><small>From ${esc(prev)}. Your projects are unchanged.</small></span><a class="btn sm" href="${SITE}/changelog.html" target="_blank" rel="noopener">What's new</a><button class="iconbtn" data-x aria-label="Dismiss">${icon('close')}</button>`;
+        box.querySelector('[data-x]').onclick = () => box.remove();
+        $('#toasts').appendChild(box);
+        setTimeout(() => box.remove(), 15000);
+      }, 1200);
+    } catch { /* no storage */ }
   }
 
   // ---------------------------------------------------------------- units & params
@@ -2428,7 +2469,8 @@ class App {
         + row('Colourful tool icons', 'Tint toolbar and timeline icons by category (sketch, create, modify…)', sw('colorIcons'))
         + row('Viewport background', 'Backdrop behind the model in the Design workspace', `<select class="input" data-pref="vpBg">${[['default', 'Theme gradient'], ['studio', 'Studio grey'], ['horizon', 'Horizon blue'], ['blueprint', 'Blueprint'], ['white', 'Plain white'], ['black', 'Plain black']].map(([v, l]) => `<option value="${v}" ${(P.vpBg || 'default') === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`)
         + row('Tooltips', 'Show command names, shortcuts and descriptions on hover', sw('tooltips'))
-        + row('Autosave', 'Save the project automatically after every change', sw('autosave'))],
+        + row('Autosave', 'Save the project automatically after every change', sw('autosave'))
+        + row('Check for updates', 'Once a day, look on the Ruffle3D website for a newer version (nothing about you or your designs is sent)', sw('updates'))],
       navigation: ['Navigation', 'pointer', () => row('Mouse preset', 'How the mouse orbits and pans the view', `<select class="input" data-pref="nav">${[['ruffle', 'Default — right orbit, middle pan'], ['fusion', 'Shift + middle orbit, middle pan'], ['solidworks', 'Middle orbit, Ctrl + middle pan'], ['onshape', 'Right orbit, middle pan']].map(([v, l]) => `<option value="${v}" ${P.nav === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`)
         + row('Field of view', `Perspective camera angle (${P.fov}°)`, `<input type="range" min="20" max="70" step="1" value="${P.fov}" data-pref="fov" style="width:190px">`)],
       display: ['Display', 'monitor', () => row('Visible edges', 'Draw model edges in shaded mode', sw('edges')) + row('Ground shadows', 'Soft contact shadows under the model', sw('shadows'))
@@ -2436,7 +2478,7 @@ class App {
       units: ['Units', 'measure', () => row('Document units', 'Plain numbers in fields and sketches are read in this unit', `<select class="input" data-units>${Object.keys(UNITS_TABLE).map((u) => `<option ${u === this.doc.units ? 'selected' : ''}>${u}</option>`).join('')}</select>`)],
       shortcuts: ['Shortcuts', 'keyboard', () => `<div class="shortcuts" style="padding-top:12px">${[['Search commands', 'Ctrl K / S'], ['New sketch', 'K'], ['Extrude', 'E'], ['Press pull', 'Q'], ['Fillet', 'F'], ['Hole', 'H'], ['Move', 'M'], ['Joint', 'J'], ['Measure', 'I'], ['Zoom to fit', 'F6'], ['Toggle panels', 'Tab'], ['Undo / redo', 'Ctrl Z / Ctrl Y'], ['Save', 'Ctrl S'], ['New design', 'Ctrl N'], ['Remove body', 'Del'], ['Cancel', 'Esc'],
         ['Sketch: line / rect / circle', 'L / R / C'], ['Sketch: arc / polygon / slot', 'A / P / S'], ['Sketch: dimension', 'D'], ['Sketch: trim / offset / fillet', 'T / O / F'], ['Sketch: construction', 'X']].map(([a, k]) => `<div><span>${a}</span><kbd>${k}</kbd></div>`).join('')}</div>`],
-      about: ['About', 'info', () => `<div style="padding:16px 0"><div class="logo" style="font-size:18px;margin-bottom:10px">${icon('logo')}<span>Ruffle<em>3D</em></span></div><p class="muted">Parametric CAD in the browser. Geometry by OpenCascade (WebAssembly) via replicad, rendering by three.js, constraint solving and region detection built in.</p><p class="muted">Projects are stored locally in this browser (IndexedDB). Download project files to back them up or move them to another machine.</p></div>`],
+      about: ['About', 'info', () => `<div style="padding:16px 0"><div class="logo" style="font-size:18px;margin-bottom:10px">${icon('logo')}<span>Ruffle<em>3D</em></span></div><p class="muted">Parametric CAD in the browser. Geometry by OpenCascade (WebAssembly) via replicad, rendering by three.js, constraint solving and region detection built in.</p><p class="muted">Projects are stored locally in this browser (IndexedDB). Download project files to back them up or move them to another machine.</p><p class="muted">Version ${__APP_VERSION__} · free and open source under the GNU GPL v3 · <a href="${SITE}" target="_blank" rel="noopener">${SITE.replace(/^https:\/\//, '')}</a></p><button class="btn sm" data-upcheck>${icon('reset')}Check for updates</button></div>`],
     };
     const m = this.modal('Preferences', `<div class="pref-grid"><nav class="pref-nav">${Object.entries(sections).map(([k, [l, ic]]) => `<button data-sec="${k}" class="${k === section ? 'on' : ''}">${icon(ic)}${l}</button>`).join('')}</nav><div class="pref-body"></div></div>`, { wide: true, cancel: false, ic: 'settings' });
     m.querySelector('.mbody').style.padding = '0';
@@ -2444,6 +2486,7 @@ class App {
     const show = (k) => {
       m.querySelectorAll('[data-sec]').forEach((b) => b.classList.toggle('on', b.dataset.sec === k));
       body.innerHTML = sections[k][2]();
+      body.querySelector('[data-upcheck]')?.addEventListener('click', () => this.checkUpdates(true));
       body.querySelectorAll('[data-pref]').forEach((el) => {
         const ev = el.type === 'range' ? 'input' : 'change';
         el.addEventListener(ev, () => {
@@ -3346,24 +3389,26 @@ class App {
   }
 
   saveFile() {
-    this.download(new Blob([JSON.stringify(this.doc, null, 1)], { type: 'application/json' }), `${this.doc.name || 'design'}.ruffle3d.json`);
-    this.toast('Project file downloaded', 'ok');
+    this.download(new Blob([JSON.stringify(this.doc, null, 1)], { type: 'application/json' }), `${this.doc.name || 'design'}.ruffle3d`);
   }
 
+  // a project file's text (from the file picker, a drop, or a file opened in the desktop app)
+  async openProjectText(name, text) {
+    try {
+      const doc = JSON.parse(text);
+      if (doc.version !== 1 || !Array.isArray(doc.features)) throw new Error('Not a Ruffle3D project file');
+      if (this.sketcher.active || this.cmd) this.toast('Finish the sketch or command first', 'warn');
+      if (this.sketcher.active) return;
+      if (this.cmd) this.cancelCommand();
+      await this.createProject(doc);
+      this.toast(`Opened ${name}`, 'ok');
+    } catch (e) { this.toast(`Could not open ${name}: ${e.message}`, 'warn'); }
+  }
   openFile() {
     const inp = document.createElement('input');
     inp.type = 'file';
-    inp.accept = '.json,.ruffle3d,.forge3d';
-    inp.onchange = async () => {
-      const f = inp.files[0];
-      if (!f) return;
-      try {
-        const doc = JSON.parse(await f.text());
-        if (doc.version !== 1 || !Array.isArray(doc.features)) throw new Error('Not a Ruffle3D project file');
-        await this.createProject(doc);
-        this.toast(`Opened ${f.name}`, 'ok');
-      } catch (e) { this.toast(`Could not open: ${e.message}`, 'warn'); }
-    };
+    inp.accept = '.ruffle3d,.json,.forge3d';
+    inp.onchange = async () => { const f = inp.files[0]; if (f) this.openProjectText(f.name, await f.text()); };
     inp.click();
   }
 
@@ -3371,21 +3416,45 @@ class App {
     const inp = document.createElement('input');
     inp.type = 'file';
     inp.accept = '.step,.stp,.stl';
-    inp.onchange = async () => {
-      const f = inp.files[0];
-      if (!f) return;
-      const buf = new Uint8Array(await f.arrayBuffer());
-      let bin = '';
-      for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
-      const format = /\.stl$/i.test(f.name) ? 'stl' : 'step';
-      this.addFeature('import', { format, data: btoa(bin), file: f.name });
-      const fid = this.doc.features[this.doc.marker - 1].id;
-      this.doc.features[this.doc.marker - 1].name = f.name;
-      this.bodyMeta(fid).name = f.name.replace(/\.[^.]+$/, '');
-      this.toast(`Imported ${f.name}`, 'ok');
-      this.rebuild().then(() => this.vp.fitAll());
-    };
+    inp.onchange = () => { const f = inp.files[0]; if (f) this.importGeometry(f); };
     inp.click();
+  }
+  async importGeometry(f) {
+    if (this.ws !== 'design') this.setWorkspace('design');
+    const buf = new Uint8Array(await f.arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+    const format = /\.stl$/i.test(f.name) ? 'stl' : 'step';
+    this.addFeature('import', { format, data: btoa(bin), file: f.name });
+    const fid = this.doc.features[this.doc.marker - 1].id;
+    this.doc.features[this.doc.marker - 1].name = f.name;
+    this.bodyMeta(fid).name = f.name.replace(/\.[^.]+$/, '');
+    this.toast(`Imported ${f.name}`, 'ok');
+    this.rebuild().then(() => this.vp.fitAll());
+  }
+
+  // files dropped onto the window: projects open, STEP and STL import into the current design
+  bindDrop() {
+    const kind = (n) => (/\.(ruffle3d|forge3d|json)$/i.test(n) ? 'project' : /\.(step|stp|stl)$/i.test(n) ? 'geometry' : null);
+    let hint = null;
+    window.addEventListener('dragover', (e) => {
+      if (![...(e.dataTransfer?.items || [])].some((i) => i.kind === 'file')) return;
+      e.preventDefault();
+      if (!hint) { hint = document.createElement('div'); hint.className = 'drop-hint'; hint.innerHTML = `<div>${icon('import')}<b>Drop to open</b><small>Ruffle3D projects open; STEP and STL files are imported</small></div>`; document.body.appendChild(hint); }
+    });
+    const clear = () => { hint?.remove(); hint = null; };
+    window.addEventListener('dragleave', (e) => { if (!e.relatedTarget) clear(); });
+    window.addEventListener('drop', async (e) => {
+      if (!e.dataTransfer?.files?.length) return;
+      e.preventDefault();
+      clear();
+      for (const f of e.dataTransfer.files) {
+        const k = kind(f.name);
+        if (k === 'project') await this.openProjectText(f.name, await f.text());
+        else if (k === 'geometry') { if (this.home.isOpen) this.home.close(); await this.importGeometry(f); }
+        else this.toast(`${f.name}: Ruffle3D opens .ruffle3d projects and imports STEP and STL`, 'warn');
+      }
+    });
   }
 
   exportAs(fmtName) {

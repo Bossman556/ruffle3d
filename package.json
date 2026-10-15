@@ -44,7 +44,7 @@
   "build": {
     "appId": "com.ruffle3d.app",
     "productName": "Ruffle3D",
-    "copyright": "Copyright © 2026 Ruffle3D contributors. GPL-3.0-or-later",
+    "copyright": "Copyright \u00a9 2026 Ruffle3D contributors. GPL-3.0-or-later",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -101,6 +101,15 @@
     "electronLanguages": [
       "en-US"
     ],
-    "compression": "maximum"
+    "compression": "maximum",
+    "fileAssociations": [
+      {
+        "ext": "ruffle3d",
+        "name": "Ruffle3D project",
+        "description": "Ruffle3D project",
+        "role": "Editor",
+        "mimeType": "application/x-ruffle3d"
+      }
+    ]
   }
 }

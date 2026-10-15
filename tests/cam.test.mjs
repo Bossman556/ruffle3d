@@ -72,6 +72,24 @@ check('Z is zero at the stock top', Math.max(...allZ) <= 10 + 1e-6 && near(Math.
 const allX = [...g.matchAll(/X(-?\d+\.?\d*)/g)].map((m) => +m[1]);
 check('X is measured from the stock left edge', Math.min(...allX) >= -3.01 - 1e-6, `${Math.min(...allX)}`);
 
+// holding tabs on the through profile: 4 tabs, 6 mm wide, 2 mm high, so the plate stays in the stock
+{
+  const camT = { ...cam, ops: [{ ...cam.ops[3], tabs: 4, tabWidth: 6, tabHeight: 2 }] };
+  const T = camToolpaths(st, camT).ops[0];
+  // points along every feed move (moves only have points at the tab edges and corners)
+  const cuts = [];
+  T.moves.forEach((m, i) => { if (m.r || !i) return; const a = T.moves[i - 1].p, b = m.p; for (let k = 0; k <= 20; k++) cuts.push(a.map((v, j) => v + ((b[j] - v) * k) / 20)); });
+  const near2 = (p, c, d) => Math.hypot(p[0] - c[0], p[1] - c[1]) < d;
+  check('tabs are placed on the outer outline', !T.error && T.tabs?.length === 4, `${T.error || ''} ${JSON.stringify(T.tabs)}`);
+  // over each tab the tool stays at or above the tab top; away from them it cuts through
+  const overTabs = cuts.filter((p) => T.tabs.some((c) => near2(p, c, 2.9)));
+  const away = cuts.filter((p) => !T.tabs.some((c) => near2(p, c, 3 + 3 + 1)));
+  check('the tool never cuts into a tab', overTabs.length > 0 && Math.min(...overTabs.map((p) => p[2])) >= 2 - 1e-9, `lowest over tabs ${Math.min(...overTabs.map((p) => p[2]))}`);
+  check('between the tabs it still cuts through the part', Math.min(...away.map((p) => p[2])) < 0, `lowest away ${Math.min(...away.map((p) => p[2]))}`);
+  const g = postGcode(camToolpaths(st, camT), camT);
+  check('tabbed profile posts to G-code', /\bG1\b/.test(g));
+}
+
 // 3D machining of a dome: R30 sphere cap on a 60 × 60 × 10 block (top of the dome at z = 15)
 {
   const { makeSphere } = await import('replicad');

@@ -97,7 +97,7 @@ export const store = {
 const PREF_KEY = 'ruffle3d.prefs';
 export const DEFAULT_PREFS = {
   theme: 'dark', nav: 'ruffle', shadows: true, ao: false, edges: true, viewcube: true, grid: true, fov: 40,
-  tooltips: true, autosave: true, accent: 'blue', colorIcons: true, vpBg: 'default',
+  tooltips: true, autosave: true, accent: 'blue', colorIcons: true, vpBg: 'default', updates: true,
 };
 export function loadPrefs() {
   try {

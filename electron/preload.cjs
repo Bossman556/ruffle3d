@@ -5,4 +5,5 @@ contextBridge.exposeInMainWorld('ruffleDesktop', {
   platform: process.platform,
   ready: () => ipcRenderer.send('ready'),
   onMenu: (cb) => ipcRenderer.on('menu', (_e, cmd) => cb(cmd)),
+  onOpenFile: (cb) => ipcRenderer.on('open-file', (_e, file) => cb(file)),
 });

@@ -2,7 +2,7 @@
 // WebAssembly kernel, module workers and the project database work exactly as in a browser, shows the
 // window once the loading screen has painted, and adds native menus, window-state memory and a single
 // running instance.
-const { app, BrowserWindow, Menu, protocol, net, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, protocol, net, shell, dialog, ipcMain } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
@@ -29,6 +29,27 @@ function saveState(win) {
   } catch { /* not critical */ }
 }
 
+// ---------- project files opened from the system (double-click, Open with, or a second launch) ----------
+// Files arrive before the page can take them, so they wait in a queue until it says it is ready.
+let pageReady = false;
+const queue = [];
+const projectArgs = (argv) => argv.filter((a) => /\.ruffle3d$/i.test(a) && fs.existsSync(a));
+function openFiles(paths) {
+  for (const p of paths) {
+    try {
+      if (fs.statSync(p).size > 500e6) throw new Error('the file is too large');
+      queue.push({ name: path.basename(p), text: fs.readFileSync(p, 'utf8') });
+    } catch (e) { dialog.showErrorBox('Could not open the file', `${path.basename(p)}: ${e.message}`); }
+  }
+  flush();
+}
+function flush() {
+  if (!pageReady || !win) return;
+  while (queue.length) win.webContents.send('open-file', queue.shift());
+}
+ipcMain.on('ready', () => { pageReady = true; flush(); });
+app.on('open-file', (e, p) => { e.preventDefault(); openFiles([p]); }); // macOS
+
 let win = null;
 function createWindow() {
   const st = loadState();
@@ -52,6 +73,7 @@ function createWindow() {
     e.preventDefault();
     if (/^https?:/.test(url)) shell.openExternal(url);
   });
+  win.webContents.on('did-start-loading', () => { pageReady = false; });
   win.loadURL(`${ORIGIN}/index.html`);
 }
 
@@ -127,6 +149,7 @@ function buildMenu() {
         { label: 'Report a Problem…', click: () => shell.openExternal(`${REPO}/issues/new/choose`) },
         { label: 'Donate to Ruffle3D…', click: () => shell.openExternal('https://ruffle3d-website.vercel.app/donate.html') },
         { type: 'separator' },
+        { label: 'Check for Updates…', click: () => send('updates') },
         { label: 'Open Data Folder', click: () => shell.openPath(app.getPath('userData')) },
         ...(mac ? [] : [{ type: 'separator' }, { label: 'About Ruffle3D', click: about }]),
       ],
@@ -135,7 +158,8 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(tpl));
 }
 
-app.on('second-instance', () => {
+app.on('second-instance', (_e, argv) => {
+  openFiles(projectArgs(argv));
   if (!win) return;
   if (win.isMinimized()) win.restore();
   win.focus();
@@ -152,6 +176,7 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin') app.setAboutPanelOptions({ applicationName: 'Ruffle3D', applicationVersion: app.getVersion(), credits: 'Free and open source (GPL-3.0-or-later). Geometry kernel: OpenCascade.' });
   buildMenu();
   createWindow();
+  openFiles(projectArgs(process.argv.slice(1)));
   app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
 });
 

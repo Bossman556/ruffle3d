@@ -115,7 +115,7 @@ export class CamWorkspace {
     const flats = Object.values(c.tools).filter((t) => t.type === 'flat'), drills = Object.values(c.tools).filter((t) => t.type === 'drill');
     const balls = Object.values(c.tools).filter((t) => t.type === 'ball');
     const tool = type === 'drill' ? drills[0] : type === 'face' ? flats.sort((a, b) => b.d - a.d)[0] : type === 'parallel' ? balls.sort((a, b) => a.d - b.d)[0] || flats[0] : flats.find((t) => t.d === 6) || flats[0];
-    const op = { id: `op${Date.now().toString(36)}${seq++}`, type, tool: tool?.id, faces: [], side: 'outside', through: true, top: 'part', ...(type === 'rough3d' ? { leave: 0.3, tolerance: 0.2, boundary: 'part' } : type === 'parallel' ? { leave: 0, tolerance: 0.1, boundary: 'part' } : {}) };
+    const op = { id: `op${Date.now().toString(36)}${seq++}`, type, tool: tool?.id, faces: [], side: 'outside', through: true, top: 'part', ...(type === 'profile' ? { tabs: 4, tabWidth: 6, tabHeight: 1.5 } : type === 'rough3d' ? { leave: 0.3, tolerance: 0.2, boundary: 'part' } : type === 'parallel' ? { leave: 0, tolerance: 0.1, boundary: 'part' } : {}) };
     c.ops.push(op);
     this.sel = op.id;
     this.app.scheduleSave();
@@ -267,7 +267,11 @@ export class CamWorkspace {
           <div class="field"><label>Area</label><div class="seg" data-bnd>${[['part', 'Part outline'], ['stock', 'Whole stock']].map(([v, l]) => `<button data-v="${v}" class="${(op.boundary || 'part') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>` : ''}
         ${op.type !== 'face' && op.type !== 'rough3d' && op.type !== 'parallel' ? `<div class="field"><label>${op.type === 'drill' ? 'Holes' : 'Faces'}</label><button class="btn sm ${this.pick === op.id ? 'primary' : ''}" data-pick>${icon('pointer')}${this.pick === op.id ? 'Done' : `${op.faces.length} selected`}</button></div>` : ''}
         ${op.type === 'profile' ? `<div class="field"><label>Side</label><div class="seg" data-side>${[['outside', 'Outside'], ['inside', 'Inside'], ['on', 'On line']].map(([v, l]) => `<button data-v="${v}" class="${op.side === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
-          <div class="field check"><label>Cut through the part</label><label class="switch"><input type="checkbox" data-through ${op.through ? 'checked' : ''}><span></span></label></div>` : ''}
+          <div class="field check"><label>Cut through the part</label><label class="switch"><input type="checkbox" data-through ${op.through ? 'checked' : ''}><span></span></label></div>
+          ${op.through && op.side !== 'inside' ? `<div class="field"><label>Holding tabs</label><div class="num"><input type="number" step="1" min="0" max="24" data-num="tabs" value="${op.tabs ?? 0}"><span class="unit"></span></div></div>
+          ${op.tabs ? `<div class="field"><label>Tab width</label><div class="num"><input type="number" step="0.5" min="0.5" data-num="tabWidth" value="${op.tabWidth ?? 6}"><span class="unit">mm</span></div></div>
+          <div class="field"><label>Tab height</label><div class="num"><input type="number" step="0.25" min="0.1" data-num="tabHeight" value="${op.tabHeight ?? 1.5}"><span class="unit">mm</span></div></div>` : ''}
+          <div class="help">Tabs keep the part attached to the stock so it can't move or fly out; cut them with a knife or saw and file them flush afterwards.</div>` : ''}` : ''}
         ${op.type === 'pocket' ? `<div class="field"><label>Start from</label><div class="seg" data-top>${[['part', 'Part top'], ['stock', 'Stock top']].map(([v, l]) => `<button data-v="${v}" class="${op.top === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>` : ''}
         ${R?.error ? `<div class="sim-stale">${icon('warn')}${esc(R.error)}</div>` : ''}
         ${R?.warnings?.length ? `<div class="sim-stale">${icon('warn')}${esc(R.warnings.join(' · '))}</div>` : ''}

@@ -2413,6 +2413,47 @@ function simplifyPath(pts, tol = 0.002) {
   return out;
 }
 
+// One pass around a closed loop at depth z, lifted to zTab over n evenly spaced tabs (each `span` long
+// along the tool path, which is the tab width plus the tool diameter). Records the tab centres once.
+function tabbedPass(loop, z, zTab, n, span, at, clear, record) {
+  const P = [...loop, loop[0]], seg = [];
+  let L = 0;
+  for (let i = 1; i < P.length; i++) { const l = Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]); seg.push(l); L += l; }
+  if (L < 1e-9) return;
+  const half = Math.min(span / 2, L / (2 * n) * 0.9);
+  const tabs = Array.from({ length: n }, (_, k) => (L * (k + 0.5)) / n);
+  const inTab = (s) => tabs.some((c) => Math.abs(s - c) < half);
+  // break points: polyline vertices plus every tab edge
+  const cuts = [0, ...tabs.flatMap((c) => [c - half, c + half])];
+  let acc = 0;
+  for (const l of seg) { acc += l; cuts.push(acc); }
+  cuts.sort((a, b) => a - b);
+  const pointAt = (s) => {
+    let a = 0;
+    for (let i = 0; i < seg.length; i++) {
+      if (s <= a + seg[i] + 1e-12) { const t = seg[i] ? (s - a) / seg[i] : 0; return [P[i][0] + (P[i + 1][0] - P[i][0]) * t, P[i][1] + (P[i + 1][1] - P[i][1]) * t]; }
+      a += seg[i];
+    }
+    return P[P.length - 1];
+  };
+  if (record) for (const c of tabs) record.push(pointAt(c));
+  const zAt = (s) => (inTab(s) ? Math.max(z, zTab) : z);
+  const p0 = pointAt(0);
+  at([p0[0], p0[1], clear], true);
+  at([p0[0], p0[1], zAt(1e-9)], false);
+  let prevZ = zAt(1e-9);
+  for (let k = 1; k < cuts.length; k++) {
+    const a = cuts[k - 1], b = cuts[k];
+    if (b - a < 1e-9) continue;
+    const zz = zAt((a + b) / 2), q = pointAt(a);
+    if (Math.abs(zz - prevZ) > 1e-9) at([q[0], q[1], zz], false); // straight up onto, or down off, a tab
+    const e = pointAt(b);
+    at([e[0], e[1], zz], false);
+    prevZ = zz;
+  }
+  at([p0[0], p0[1], clear], true);
+}
+
 function horizontalFace(state, pk) {
   const { face } = pickedFace(state, pk);
   if (face.geomType !== 'PLANE') throw new Error('Pick flat faces that face up (+Z)');
@@ -2473,7 +2514,16 @@ export function camToolpaths(state, cam) {
             const loops = d ? faceOffsetLoops(face, d) : faceOffsetLoops(face, 1e-4);
             if (!loops.length) throw new Error('The tool is too large for this profile');
             const bottom = op.through ? stock.part.lo[2] - (op.extra ?? 0.5) : z;
-            for (const zz of levels(stock.hi[2], bottom, tool.stepdown)) for (const L of loops) loopPass(L, zz);
+            // holding tabs: on through cuts, bridges of material left on the outer outline so the part
+            // stays attached to the stock; the tool lifts over them on the passes below the tab top
+            const nTabs = op.through && side !== 'inside' ? Math.max(0, Math.round(op.tabs || 0)) : 0;
+            const zTab = stock.part.lo[2] + Math.max(0.1, op.tabHeight ?? 1.5);
+            const outer = nTabs ? loops.reduce((a, b) => (Math.abs(loopArea2(b)) > Math.abs(loopArea2(a)) ? b : a)) : null;
+            if (nTabs) res.tabs = [];
+            for (const zz of levels(stock.hi[2], bottom, tool.stepdown)) for (const L of loops) {
+              if (L === outer && zz < zTab - 1e-9) tabbedPass(L, zz, zTab, nTabs, (op.tabWidth ?? 6) + 2 * r, at, clear, res.tabs.length ? null : res.tabs);
+              else loopPass(L, zz);
+            }
           } else {
             // pocket: rings from the wall inwards, cut from the inside out at each depth
             const over = tool.d * (tool.stepover ?? 0.45), rings = [];

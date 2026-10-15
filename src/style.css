@@ -651,3 +651,15 @@ svg.dw-sheet.placing { cursor: crosshair; }
 .asm-status.ok { color: var(--ok); }
 .asm-status.warn { color: var(--warn); }
 .asm-status.bad { color: var(--danger); }
+
+/* update notice: stays until dismissed */
+.toast.update-toast { align-items: center; gap: 10px; animation: none; }
+.toast.update-toast > span { display: flex; flex-direction: column; gap: 2px; }
+.toast.update-toast small { color: var(--text3); font-size: 11.5px; }
+.toast.update-toast .btn { text-decoration: none; }
+
+/* drag and drop files onto the window */
+.drop-hint { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; background: color-mix(in srgb, var(--bg1, #111) 70%, transparent); border: 3px dashed var(--accent); pointer-events: none; }
+.drop-hint > div { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 34px; border-radius: 14px; background: var(--bg2); box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+.drop-hint svg { width: 32px; height: 32px; color: var(--accent); }
+.drop-hint small { color: var(--text3); }

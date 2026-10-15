@@ -32,7 +32,7 @@
       <thead><tr><th>Operation</th><th>What it does</th></tr></thead>
       <tbody>
         <tr><td>Facing</td><td>Skims the top allowance off the whole stock in a zigzag, down to the top of the part.</td></tr>
-        <tr><td>2D Profile</td><td>Follows the outline of the flat faces you pick, with the tool outside the outline, inside it, or on it. Turn on <b>Cut through the part</b> to cut it free from the stock. Holes inside the face are profiled too.</td></tr>
+        <tr><td>2D Profile</td><td>Follows the outline of the flat faces you pick, with the tool outside the outline, inside it, or on it. Turn on <b>Cut through the part</b> to cut it free from the stock. Through-cuts leave <b>holding tabs</b> (4 by default): small bridges of material, with a width and height you set, that keep the part attached so it can't move or fly out. Cut them with a knife or saw afterwards and file them flush. Set the number of tabs to 0 to cut the part completely free. Holes inside the face are profiled too.</td></tr>
         <tr><td>Pocket</td><td>Click the floor of a pocket. The pocket is cleared in rings from the walls inwards, in equal depth passes, and the tool goes around any islands left standing in the pocket.</td></tr>
         <tr><td>3D Rough</td><td>Clears material from curved parts in equal depth levels, following the surface where it rises above each level and leaving <b>stock to leave</b> (0.3 mm by default) for finishing. Use a flat end mill.</td></tr>
         <tr><td>3D Parallel finish</td><td>Raster passes over the whole part with a ball end mill, following the surface exactly (drop-cutter on a fine height map of the part, to the <b>tolerance</b> you set). A step-over of about 10% of the ball diameter gives a smooth finish.</td></tr>
@@ -48,7 +48,7 @@
     <h2 id="limits">Limits</h2>
     <ul>
       <li>Everything is cut from the top (+Z). There is no 4th or 5th axis, and 3D operations can't reach undercuts.</li>
-      <li>Profiles don't add holding tabs. Hold through-cut parts with screws, double-sided tape or a vacuum table.</li>
+      <li>Holding tabs are spaced evenly around the outer outline only; cut-outs inside the part drop free.</li>
       <li>There is no material-removal simulation or collision check against fixtures.</li>
       <li>Ramping and helical entry are not used: tools plunge straight down at the plunge feed. Use end mills that can cut at their centre, or drill a start hole.</li>
     </ul>
