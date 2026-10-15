@@ -113,6 +113,18 @@ export const FEATURES = {
       { key: 'join', label: 'Join into one body', type: 'check', default: true },
     ],
   },
+  ppattern: {
+    label: 'Path Pattern', icon: 'ppattern', group: 'create',
+    fields: [
+      { key: 'bodies', label: 'Bodies', type: 'bodies' },
+      { key: 'path', label: 'Path sketch', type: 'sketch', curve: true },
+      { key: 'count', label: 'Quantity', type: 'int', default: '6' },
+      { key: 'mode', label: 'Spacing', type: 'select', options: [['fit', 'Spread along the whole path'], ['spacing', 'Set distance apart']], default: 'fit' },
+      { key: 'spacing', label: 'Distance', type: 'number', default: '20', unit: 'mm', show: (p) => p.mode === 'spacing' },
+      { key: 'orient', label: 'Orientation', type: 'select', options: [['fixed', 'Keep orientation'], ['follow', 'Turn with the path']], default: 'fixed' },
+      { key: 'join', label: 'Join into one body', type: 'check', default: true },
+    ],
+  },
   cpattern: {
     label: 'Circular Pattern', icon: 'cpattern', group: 'create',
     fields: [

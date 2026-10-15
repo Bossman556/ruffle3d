@@ -9,6 +9,7 @@ import {
   distToGeom, closestOnGeom, intersect, normAng, VIRTUAL_LINES,
 } from './sketch/model.js';
 import { solveSketch } from './sketch/solver.js';
+import { splineSamples, fitPointLengths, splineCrossings, trimSplinePieces, splineSide, offsetSplinePoints } from './sketch/splineops.js';
 import { computeRegions } from './sketch/regions.js';
 
 const TAU = Math.PI * 2;
@@ -837,7 +838,7 @@ export class Sketcher {
     if (!h) return;
     const c = getCurve(this.sk, h.id);
     const g = this.geomOf(h.id);
-    if (c.type === 'spline') return this.ui.toast('Splines cannot be trimmed');
+    if (c.type === 'spline') return this._trimSpline(c, g, p);
     // intersection parameters with every other curve
     const others = this.sk.curves.filter((o) => o.id !== c.id).map((o) => ({ o, g: curveGeom(this.sk, o) })).filter((x) => x.g && x.g.type !== 'spline');
     const hits = [];
@@ -890,6 +891,34 @@ export class Sketcher {
     });
   }
 
+  // trim a spline: keep the pieces outside the nearest crossings, refitted through the fit points kept
+  _trimSpline(c, g, p) {
+    const samples = splineSamples(g);
+    const others = this.sk.curves.filter((o) => o.id !== c.id).map((o) => ({ id: o.id, g: curveGeom(this.sk, o) })).filter((x) => x.g).map((x) => ({ ...x, samples: x.g.type === 'spline' ? splineSamples(x.g, 16) : null }));
+    const crossings = splineCrossings(samples, others);
+    let sClick = 0, bd = Infinity;
+    for (const q of samples) { const d = d2(q.p, p); if (d < bd) { bd = d; sClick = q.s; } }
+    const total = samples[samples.length - 1].s;
+    const lengths = fitPointLengths(samples, g.bez.length);
+    const pieces = trimSplinePieces(c.pts.map((id) => ({ id })), lengths, !!c.closed, crossings, sClick, total);
+    this.commitChange((sk) => {
+      const reuse = (xy, other) => {
+        const ex = sk.points.find((pp) => d2([pp.x, pp.y], xy) < 1e-7);
+        if (ex) return ex.id;
+        const id = this.addPoint(xy);
+        if (other) this.addCon('pointOnCurve', { p: id, curve: other });
+        return id;
+      };
+      sk.curves = sk.curves.filter((x) => x.id !== c.id);
+      sk.dims = sk.dims.filter((d) => d.curve !== c.id);
+      for (const pc of pieces) {
+        const ids = pc.pts.map((q) => q.id || reuse(q.xy, q.other));
+        this.addCurve({ type: 'spline', pts: ids, closed: false, ...(c.construction ? { construction: true } : {}) });
+      }
+    });
+    if (!pieces.length) this.ui.toast('The spline crossed nothing, so it was removed');
+  }
+
   _filletClick(p) {
     const h = this.hitTest(p, { curves: false, axes: false });
     if (!h || h.kind !== 'point') return this.ui.toast('Click a corner where two lines meet');
@@ -936,8 +965,15 @@ export class Sketcher {
       this.commitChange(() => this.addCurve({ type: 'circle', c: c0.c, r }));
       return;
     }
+    if (c0.type === 'spline') {
+      const g = this.geomOf(c0.id);
+      const side = splineSide(splineSamples(g, 16), this.cursorRaw || p);
+      const pts = offsetSplinePoints(g, D * side);
+      this.commitChange(() => { const ids = pts.map((xy) => this.addPoint(xy)); this.addCurve({ type: 'spline', pts: ids, closed: !!c0.closed }); });
+      return;
+    }
     const chain = this._chainFrom(c0);
-    if (!chain) return this.ui.toast('Offset works on connected lines and arcs');
+    if (!chain) return this.ui.toast('Offset works on connected lines and arcs, circles and splines');
     // which side? sample: offset toward the cursor
     const g0 = this.geomOf(chain.items[0].id);
     const side = sideOf(g0, chain.items[0].fwd, this.cursorRaw || p);

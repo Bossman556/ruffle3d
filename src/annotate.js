@@ -108,7 +108,8 @@ export function annotationsSVG(items, L, selId) {
   return items.map((it) => {
     const sel = it.id === selId ? ' an-sel' : '';
     let body = '';
-    if (it.view) {
+    if (it.t === 'detail') body = L.detail ? L.detail(it) : '';
+    else if (it.view) {
       const V = L.views[it.view];
       if (!V) return '';
       const S = (p) => V.toSheet(p[0], p[1]);

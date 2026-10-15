@@ -28,6 +28,7 @@
     <p>Start a sketch with <kbd>K</kbd> and click an origin plane, a construction plane or any flat face. Sketches attached to faces follow the face when the model changes.</p>
     <img class="screenshot" src="../assets/img/screens/sketch.jpg" width="2000" height="1250" alt="Sketch mode" loading="lazy" />
     <p>While you draw, Ruffle3D adds horizontal, vertical, coincident and midpoint constraints automatically. To give an exact size, type a number while a line or circle is being drawn. Construction geometry (<kbd>X</kbd>) is drawn dashed and is not used for profiles.</p>
+    <p><b>Trim</b> removes the piece of a curve between the nearest crossings, and <b>Offset</b> makes a parallel copy toward the side you click. Both work on lines, arcs, circles and splines. A trimmed or offset spline is refitted through new points, so its shape near a cut can change very slightly.</p>
     <p><b>Project</b> copies edges of the model into the sketch as fixed reference geometry. Projections are associative: when the model changes, each projected edge is found again and moved, so dimensions and constraints that use it follow. If its edge is gone, the projection keeps its last position and the sketch shows a warning.</p>
     <p>Closed regions become profiles. Overlapping curves split into separate regions, and loops inside other loops become holes. When you extrude or revolve, click the regions you want to use.</p>
 
@@ -48,7 +49,7 @@
         <tr><td>Press Pull <kbd>Q</kbd></td><td>Pushes or pulls flat faces by a distance.</td></tr>
         <tr><td>Draft</td><td>Tapers faces against a neutral plane for moulding.</td></tr>
         <tr><td>Split body</td><td>Cuts a body into two with a plane or face.</td></tr>
-        <tr><td>Patterns / Mirror</td><td>Rectangular and circular patterns of bodies; mirror about a plane.</td></tr>
+        <tr><td>Patterns / Mirror</td><td>Rectangular and circular patterns of bodies; <b>Path Pattern</b> spreads copies along a sketch curve (evenly over its length, or a set distance apart) and can turn each copy to follow the curve; mirror about a plane.</td></tr>
         <tr><td>Move / Scale <kbd>M</kbd></td><td>Moves, rotates, copies or scales bodies.</td></tr>
       </tbody>
     </table>

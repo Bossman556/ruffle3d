@@ -82,6 +82,7 @@ const CAD = {
   split: s(`<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M2 12h20" stroke="var(--danger)" stroke-dasharray="3 2"/>`),
   component: s(`<path d="M3 8l6-3 6 3v7l-6 3-6-3z" ${A}/><path d="M13 11l4-2 4 2v6l-4 2-4-2"/><path d="M3 8l6 3 6-3M9 11v7"/>`),
   mate: s(`<rect x="3" y="13" width="18" height="7" rx="1.2" ${A}/><rect x="6" y="4" width="12" height="6" rx="1.2"/><path d="M12 10v3M9.5 11.5L12 13l2.5-1.5"/>`),
+  ppattern: s(`<path d="M3 18c4-9 8 2 12-6 2-4 4-5 6-5" stroke-dasharray="2 2"/><rect x="2" y="15.5" width="4" height="4" rx=".8" ${A}/><rect x="9" y="11" width="4" height="4" rx=".8"/><rect x="16.5" y="5" width="4" height="4" rx=".8"/>`),
   joint: s(`<circle cx="8" cy="12" r="4.2" ${A}/><circle cx="16" cy="12" r="4.2"/><path d="M12 5.5v13" stroke-dasharray="2 2"/>`),
   interference: s(`<rect x="3" y="7" width="11" height="11" rx="1.5"/><rect x="10" y="3" width="11" height="11" rx="1.5"/><rect x="10" y="7" width="4" height="7" fill="var(--danger)" fill-opacity=".75" stroke="none"/>`),
   drawing: s(`<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 16h18M14 16v4"/><rect x="6" y="7" width="5" height="5" rx=".8" ${A}/><path d="M13.5 7h4.5v5h-4.5z"/>`),

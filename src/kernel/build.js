@@ -73,6 +73,51 @@ const toSketch = (sk, pts) => profileDrawing(sk, pts).sketchOnPlane(mkPlane(sk.p
 const largestRegion = (sk, pts) => pickRegions(sk, pts).sort((a, b) => b.area - a.area)[0];
 
 // Orders the open curves of a sketch into a single path wire (for sweeps).
+// The path of a sketch as one 2D polyline in order (lines exact; arcs, circles and splines sampled),
+// with cumulative lengths. Used to place instances along a path.
+function pathPolyline(sk) {
+  const gs = sk.geom.filter((g) => !g.construction);
+  if (!gs.length) throw new Error('Path sketch is empty');
+  const sample = (g) => {
+    if (g.type === 'line') return [g.a, g.b];
+    if (g.type === 'circle') return Array.from({ length: 257 }, (_, i) => [g.c[0] + g.r * Math.cos((i / 256) * 2 * Math.PI), g.c[1] + g.r * Math.sin((i / 256) * 2 * Math.PI)]);
+    if (g.type === 'arc') { const n = Math.max(8, Math.ceil(g.sweep / 0.02)); return Array.from({ length: n + 1 }, (_, i) => { const t = g.a0 + (g.sweep * i) / n; return [g.c[0] + g.r * Math.cos(t), g.c[1] + g.r * Math.sin(t)]; }); }
+    const out = [];
+    g.bez.forEach((b, j) => { for (let k = j ? 1 : 0; k <= 48; k++) { const t = k / 48, u = 1 - t; out.push([0, 1].map((d) => u * u * u * b[0][d] + 3 * u * u * t * b[1][d] + 3 * u * t * t * b[2][d] + t * t * t * b[3][d])); } });
+    return out;
+  };
+  let pts;
+  if (gs.length === 1) pts = sample(gs[0]);
+  else {
+    const same = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 1e-6;
+    const remaining = gs.map(sample);
+    const all = remaining.flatMap((q) => [q[0], q[q.length - 1]]);
+    let cur = all.find((p) => all.filter((q) => same(p, q)).length === 1) || all[0];
+    pts = [cur];
+    while (remaining.length) {
+      const i = remaining.findIndex((q) => same(q[0], cur) || same(q[q.length - 1], cur));
+      if (i < 0) throw new Error('Path curves must be connected end to end');
+      let q = remaining.splice(i, 1)[0];
+      if (!same(q[0], cur)) q = q.slice().reverse();
+      pts.push(...q.slice(1));
+      cur = q[q.length - 1];
+    }
+  }
+  const len = [0];
+  for (let i = 1; i < pts.length; i++) len.push(len[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const closed = Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 1e-6;
+  // point and direction (angle in the sketch plane) at arc length s
+  const at = (s) => {
+    s = Math.max(0, Math.min(len[len.length - 1], s));
+    let i = 1;
+    while (i < len.length - 1 && len[i] < s) i++;
+    const t = len[i] > len[i - 1] ? (s - len[i - 1]) / (len[i] - len[i - 1]) : 0;
+    const a = pts[i - 1], b = pts[i];
+    return { p: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], ang: Math.atan2(b[1] - a[1], b[0] - a[0]) };
+  };
+  return { pts, len: len[len.length - 1], closed, at };
+}
+
 function pathWire(sk) {
   const gs = sk.geom.filter((g) => !g.construction);
   if (!gs.length) throw new Error('Path sketch is empty');
@@ -1779,6 +1824,42 @@ const BUILDERS = {
       }
       if (p.join) st.bodies.set(id, acc);
     });
+  },
+
+  // copies of bodies spaced along a sketch path, keeping their orientation or turning with the path
+  ppattern(f, st) {
+    const { p } = f;
+    if (!p.bodies?.length) throw new Error('Select bodies to pattern');
+    const sk = getSketch(st, p.path, 'path');
+    const path = pathPolyline(sk);
+    if (path.len < 1e-6) throw new Error('The path has no length');
+    const n = Math.max(1, Math.round(p.count));
+    if (n > 400) throw new Error('Too many instances (max 400)');
+    let step;
+    if (p.mode === 'spacing') {
+      step = p.spacing;
+      if (!(step > 0)) throw new Error('Spacing must be more than zero');
+    } else step = path.closed ? path.len / n : path.len / Math.max(1, n - 1);
+    const pl = sk.plane, y = yDirOf(pl);
+    const to3 = (q) => add(pl.origin, add(mul(pl.xDir, q[0]), mul(y, q[1])));
+    const start = path.at(0), P0 = to3(start.p);
+    let warned = 0;
+    p.bodies.forEach((id, bi) => {
+      const src = getBody(st, id);
+      let acc = src;
+      for (let i = 1; i < n; i++) {
+        const s = i * step;
+        if (s > path.len + 1e-9) { warned++; continue; }
+        const q = path.at(s), turn = p.orient === 'follow' ? ((q.ang - start.ang) * 180) / Math.PI : 0;
+        let inst = src.clone();
+        if (Math.abs(turn) > 1e-9) inst = inst.rotate(turn, P0, pl.normal);
+        inst = inst.translate(sub(to3(q.p), P0));
+        if (p.join) acc = acc.fuse(inst);
+        else st.bodies.set(`${f.id}#${bi}_${i}`, inst);
+      }
+      if (p.join) st.bodies.set(id, acc);
+    });
+    if (warned) return { warning: `${warned / p.bodies.length} instance${warned / p.bodies.length === 1 ? '' : 's'} would fall past the end of the path and ${warned / p.bodies.length === 1 ? 'was' : 'were'} left out` };
   },
 
   joint(f, st) {

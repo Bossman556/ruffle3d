@@ -125,7 +125,7 @@ const DESC = {
   fillet: 'Round edges', chamfer: 'Bevel edges', shell: 'Hollow a body', combine: 'Join, cut or intersect bodies',
   draft: 'Taper faces for moulding', split: 'Split a body with a plane', move: 'Move, rotate or copy bodies', scale: 'Scale bodies',
   remove: 'Remove bodies', joint: 'Position parts with motion', mirror: 'Mirror bodies across a plane',
-  rpattern: 'Rectangular pattern of bodies', cpattern: 'Circular pattern of bodies', box: 'Box primitive', cylinder: 'Cylinder primitive',
+  rpattern: 'Rectangular pattern of bodies', cpattern: 'Circular pattern of bodies', ppattern: 'Copies of bodies spaced along a sketch curve', box: 'Box primitive', cylinder: 'Cylinder primitive',
   sphere: 'Sphere primitive', torus: 'Torus primitive', cone: 'Cone primitive',
   surfextrude: 'Sweep curves straight into a surface', surfrevolve: 'Spin curves around an axis into a surface',
   surfloft: 'Skin a surface through section curves', surfsweep: 'Sweep a profile curve along a rail',
@@ -138,9 +138,9 @@ const DESC = {
   sheetbase: 'Flat sheet metal plate from a sketch profile, with thickness, bend radius and K-factor', flange: 'Bend a flange up or down from a straight edge of a sheet metal plate',
 };
 const cmdInfo = (c) => ({ ...(FEATURES[c] || {}), desc: DESC[c], ...(EXTRA[c] || {}) });
-const SHORT = { sheetbase: 'Base', flatpattern: 'Flat', printcheck: 'Print', importdxf: 'DXF', exportdxf: 'DXF out', configs: 'Configs', cvcurve: 'CV Curve', editcv: 'Edit CVs', cvsurface: 'CV Surface', rebuildcv: 'Rebuild', surffillet: 'Fillet', surftrim: 'Trim', appearance: 'Paint', draftan: 'Draft', surfextrude: 'Extrude', surfrevolve: 'Revolve', surfloft: 'Skin', surfsweep: 'Rail', patch: 'Patch', surfoffset: 'Offset', curvmap: 'Curvature', comb: 'Comb', presspull: 'Press Pull', rpattern: 'Pattern', cpattern: 'Circular', 'plane:offset': 'Plane', interference: 'Interfere', cylinder: 'Cylinder' };
+const SHORT = { sheetbase: 'Base', flatpattern: 'Flat', printcheck: 'Print', importdxf: 'DXF', exportdxf: 'DXF out', configs: 'Configs', cvcurve: 'CV Curve', editcv: 'Edit CVs', cvsurface: 'CV Surface', rebuildcv: 'Rebuild', surffillet: 'Fillet', surftrim: 'Trim', appearance: 'Paint', draftan: 'Draft', surfextrude: 'Extrude', surfrevolve: 'Revolve', surfloft: 'Skin', surfsweep: 'Rail', patch: 'Patch', surfoffset: 'Offset', curvmap: 'Curvature', comb: 'Comb', presspull: 'Press Pull', rpattern: 'Pattern', cpattern: 'Circular', ppattern: 'Path', 'plane:offset': 'Plane', interference: 'Interfere', cylinder: 'Cylinder' };
 const DESIGN_GROUPS = [
-  { name: 'Create', color: 'create', items: ['sketch', 'extrude', 'revolve', 'sweep', 'loft', 'hole'], more: ['text', 'thread', 'coil', '-', 'box', 'cylinder', 'sphere', 'torus', 'cone', '-', 'rpattern', 'cpattern', 'mirror'] },
+  { name: 'Create', color: 'create', items: ['sketch', 'extrude', 'revolve', 'sweep', 'loft', 'hole'], more: ['text', 'thread', 'coil', '-', 'box', 'cylinder', 'sphere', 'torus', 'cone', '-', 'rpattern', 'cpattern', 'ppattern', 'mirror'] },
   { name: 'Modify', color: 'modify', items: ['presspull', 'fillet', 'chamfer', 'shell', 'combine', 'appearance'], more: ['draft', 'split', 'move', 'scale', 'remove', '-', 'material', 'params'] },
   { name: 'Sheet Metal', color: 'sheet', items: ['sheetbase', 'flange', 'flatpattern'], more: [] },
   { name: 'Assemble', color: 'assemble', items: ['component', 'mate', 'joint', 'explode'], more: ['assembly', 'animate'] },
