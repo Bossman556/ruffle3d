@@ -16,5 +16,9 @@
     "legal": "legal@ruffle3d.example"
   },
   "legalUpdated": "12 October 2026",
-  "repo": "https://github.com/Bossman556/ruffle3d"
+  "repo": "https://github.com/Bossman556/ruffle3d",
+  "donate": {
+    "eth": "0xDADCa1C7f35f4653aFEE031160ECdFCD56972Fee",
+    "btc": "bc1qwmyk9pmz4l9c4vgk0txffd902p2u2fc62hwaf6"
+  }
 }

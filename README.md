@@ -12,6 +12,8 @@ Ruffle3D is free and open source under the [GNU General Public License v3.0 or l
 
 Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md) to get set up, and the [code of conduct](CODE_OF_CONDUCT.md). Report bugs and ideas in [issues](https://github.com/Bossman556/ruffle3d/issues), and security problems privately as described in [SECURITY.md](SECURITY.md).
 
+If Ruffle3D is useful to you, you can support it with a donation in Bitcoin or Ethereum on the [donate page](https://ruffle3d-website.vercel.app/donate.html).
+
 Third-party components keep their own licences: OpenCascade (LGPL-2.1, used as a separate WebAssembly module), replicad (MIT), three.js (MIT), Lucide icons (ISC) and the Inter font (OFL-1.1). Their licence texts are in `site/assets/licenses/`.
 
 ## Run it

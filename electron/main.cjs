@@ -125,6 +125,7 @@ function buildMenu() {
         { type: 'separator' },
         { label: 'Source Code and Contributing', click: () => shell.openExternal(REPO) },
         { label: 'Report a Problem…', click: () => shell.openExternal(`${REPO}/issues/new/choose`) },
+        { label: 'Donate to Ruffle3D…', click: () => shell.openExternal('https://ruffle3d-website.vercel.app/donate.html') },
         { type: 'separator' },
         { label: 'Open Data Folder', click: () => shell.openPath(app.getPath('userData')) },
         ...(mac ? [] : [{ type: 'separator' }, { label: 'About Ruffle3D', click: about }]),

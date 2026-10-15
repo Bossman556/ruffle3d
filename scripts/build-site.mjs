@@ -8,6 +8,8 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, cpSync, rmSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import QRCode from 'qrcode';
+import { checkEth, checkBtc } from './wallets.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const src = path.join(root, 'site');
@@ -49,6 +51,13 @@ const STEPS = {
     zip: '<li>Download and unzip the package.</li><li>Run <code>./start-ruffle3d.sh</code> from the folder.</li><li>Ruffle3D opens in your default browser. Needs Python 3 or Node.js.</li>',
   },
 };
+// donation addresses: verified against their checksums (a typo would lose people's money), with QR codes
+if (cfg.donate) {
+  const bad = [['eth', checkEth(cfg.donate.eth)], ['btc', checkBtc(cfg.donate.btc)]].filter(([, e]) => e);
+  if (bad.length) throw new Error(`site.json donate addresses are not valid: ${bad.map(([k, e]) => `${k}: ${e}`).join('; ')}`);
+  const qr = (uri) => QRCode.toString(uri, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#111111', light: '#ffffff' } });
+  ctx.donate = { ...cfg.donate, ethUri: `ethereum:${cfg.donate.eth}`, btcUri: `bitcoin:${cfg.donate.btc}`, ethQR: await qr(`ethereum:${cfg.donate.eth}`), btcQR: await qr(`bitcoin:${cfg.donate.btc}`) };
+}
 ctx.dl = Object.fromEntries(['windows', 'mac', 'linux'].map((os) => {
   const ins = release.installers?.[os], z = ctx.release[os];
   const pick = ins ? { file: ins.file, sha256: ins.sha256, sizeMB: (ins.bytes / 1e6).toFixed(1), href: `downloads/${ins.file}` } : z;

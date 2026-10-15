@@ -1,0 +1,49 @@
+<!-- {"title": "Donate — Ruffle3D", "description": "Support Ruffle3D, the free and open-source CAD application, with a donation in Bitcoin or Ethereum.", "section": "donate"} -->
+<header class="page-head">
+  <div class="container">
+    <h1>Support Ruffle3D</h1>
+    <p>Ruffle3D is free and open source, with no ads, no accounts and no paid tier. If it's useful to you, a donation helps keep it that way and pays for the time that goes into new features and fixes.</p>
+  </div>
+</header>
+
+<section class="section-tight">
+  <div class="container cols-2 donate-grid">
+    <div class="package donate-card">
+      <h3>Bitcoin (BTC)</h3>
+      <div class="donate-qr" role="img" aria-label="QR code for the Bitcoin donation address">{{donate.btcQR}}</div>
+      <p class="muted small">Scan with your wallet app, or copy the address. Send Bitcoin (BTC) on the Bitcoin network only.</p>
+      <code class="donate-addr" id="addr-btc">{{donate.btc}}</code>
+      <div class="donate-actions">
+        <button class="button button-dark button-small" type="button" data-copy="addr-btc">Copy address</button>
+        <a class="button button-outline button-small" href="{{donate.btcUri}}">Open in wallet</a>
+      </div>
+    </div>
+    <div class="package donate-card">
+      <h3>Ethereum (ETH)</h3>
+      <div class="donate-qr" role="img" aria-label="QR code for the Ethereum donation address">{{donate.ethQR}}</div>
+      <p class="muted small">Scan with your wallet app, or copy the address. Send ETH on the Ethereum mainnet only.</p>
+      <code class="donate-addr" id="addr-eth">{{donate.eth}}</code>
+      <div class="donate-actions">
+        <button class="button button-dark button-small" type="button" data-copy="addr-eth">Copy address</button>
+        <a class="button button-outline button-small" href="{{donate.ethUri}}">Open in wallet</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-soft">
+  <div class="narrow prose">
+    <h2 style="margin-top:0">Before you send</h2>
+    <ul>
+      <li><b>Check the address</b> in your wallet before you confirm. Crypto payments can't be reversed, and coins sent to a wrong address or on the wrong network can't be recovered.</li>
+      <li>The addresses on this page are the only ones Ruffle3D uses. We will never ask you for a donation by email or direct message.</li>
+      <li>Donations are voluntary gifts to the project. They don't buy a licence, support or any service, and they aren't tax-deductible.</li>
+    </ul>
+    <h2>Other ways to help</h2>
+    <ul>
+      <li><a href="{{repo}}">Star the project on GitHub</a> and tell people who design things about it.</li>
+      <li><a href="{{repo}}/issues/new/choose">Report bugs</a> and suggest features.</li>
+      <li><a href="{{repo}}/blob/main/CONTRIBUTING.md">Contribute code, tests or documentation.</a></li>
+    </ul>
+  </div>
+</section>
