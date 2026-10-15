@@ -386,15 +386,31 @@ export function buildModel(opts) {
   if (!nFixed) throw new Error('The fixed faces could not be found on the mesh');
   const f = new Float64Array(ndof);
   const applied = [0, 0, 0];
+  const unit3 = (d) => { const l = Math.hypot(...d) || 1; return d.map((x) => x / l); };
   for (const L of loads) {
+    if (L.type === 'gravity') {
+      // self-weight: each element's mass (ρ in g/cm³ → t/mm³) × g (9810 mm/s²) × the multiplier, shared by its 8 nodes
+      const d = unit3(Array.isArray(L.dir) ? L.dir : [0, 0, -1]), rho = (opts.density || 1) * 1e-9, g = 9810 * (L.value || 1);
+      for (let e = 0; e < ne; e++) {
+        const Fe = (rho * h * h * h * efrac[e] * g) / 8;
+        for (let c = 0; c < 8; c++) { const id = conn[e * 8 + c]; for (let k = 0; k < 3; k++) { f[id * 3 + k] += d[k] * Fe; applied[k] += d[k] * Fe; } }
+      }
+      continue;
+    }
     const samples = faceSamples(positions, index, faceGroups, L.faces, h, sign);
     const area = samples.reduce((a, s) => a + s.area, 0);
     if (!area) continue;
+    // bearing load: a pin pushing along d presses on the side of the hole facing d, most at its centre
+    // (cosine distribution over the contact half); the total is L.value along d
+    const bd = L.type === 'bearing' ? unit3(Array.isArray(L.dir) ? L.dir : [0, 0, -1]) : null;
+    const bw = bd ? samples.reduce((a, s) => a + Math.max(0, -(s.n[0] * bd[0] + s.n[1] * bd[1] + s.n[2] * bd[2])) * s.area, 0) : 0;
+    if (bd && !bw) continue;
     for (const s of samples) {
       const id = nearestNode(s.p);
       if (id < 0) continue;
       let F;
-      if (L.type === 'pressure') F = s.n.map((x) => -x * L.value * s.area); // pressure pushes into the surface
+      if (bd) { const w = Math.max(0, -(s.n[0] * bd[0] + s.n[1] * bd[1] + s.n[2] * bd[2])) * s.area; if (!w) continue; F = bd.map((x) => (x * L.value * w) / bw); }
+      else if (L.type === 'pressure') F = s.n.map((x) => -x * L.value * s.area); // pressure pushes into the surface
       else if (L.dir === 'normal' || !L.dir) F = s.n.map((x) => (-x * L.value * s.area) / area);
       else { const d = Math.hypot(...L.dir) || 1; F = L.dir.map((x) => (x / d) * L.value * (s.area / area)); }
       for (let c = 0; c < 3; c++) { f[id * 3 + c] += F[c]; applied[c] += F[c]; }

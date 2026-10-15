@@ -68,6 +68,26 @@ let err = '';
 try { solveStatic({ ...box, E, nu: 0.3, elements: 640, fixed: [], loads: [{ faces: [1], type: 'force', value: 1, dir: 'normal' }] }); } catch (e) { err = e.message; }
 check('missing constraint is explained', /fixed face/.test(err), err);
 
+// gravity: the steel bar's own weight, ρVg = 7.85e-9 t/mm³ × 10 000 mm³ × 9810 mm/s² = 0.770 N, sags it
+// like a cantilever with a uniform load: δ = wL⁴/(8EI) (plus a little shear)
+{
+  const W = 7.85e-9 * 100 * 10 * 10 * 9810, w = W / L;
+  const grav = solveStatic({ ...box, E, nu: 0.3, density: 7.85, elements: 2560, fixed: [0], loads: [{ type: 'gravity', faces: [], value: 1, dir: [0, 0, -1] }] });
+  const want = (w * L ** 4) / (8 * E * I);
+  check('gravity applies the body weight', Math.abs(-grav.appliedForce[2] - W) / W < 1e-9, `${(-grav.appliedForce[2]).toFixed(4)} N vs ${W.toFixed(4)} N`);
+  check('self-weight sag matches beam theory within 8%', Math.abs(grav.maxDisplacement - want) / want < 0.08, `${grav.maxDisplacement.toExponential(3)} vs ${want.toExponential(3)} mm`);
+  const g3 = solveStatic({ ...box, E, nu: 0.3, density: 7.85, elements: 2560, fixed: [0], loads: [{ type: 'gravity', faces: [], value: 3, dir: [0, 0, -1] }] });
+  check('a 3 g load is three times the weight', Math.abs(g3.maxDisplacement / grav.maxDisplacement - 3) < 1e-6);
+}
+// bearing load: pushing down on all four long faces, only the faces that face the push (the top) carry it,
+// so it equals a plain 100 N force spread on the top face
+{
+  const bear = solveStatic({ ...box, E, nu: 0.3, elements: 640, fixed: [0], loads: [{ type: 'bearing', faces: [2, 3, 4, 5], value: F, dir: [0, 0, -1] }] });
+  const plain = solveStatic({ ...box, E, nu: 0.3, elements: 640, fixed: [0], loads: [{ type: 'force', faces: [5], value: F, dir: [0, 0, -1] }] });
+  check('bearing load totals the force along its direction', Math.abs(bear.appliedForce[2] + F) < 1e-6 && Math.abs(bear.appliedForce[0]) < 1e-9 && Math.abs(bear.appliedForce[1]) < 1e-9, JSON.stringify(bear.appliedForce.map((v) => +v.toFixed(6))));
+  check('only the side facing the push is loaded', Math.abs(bear.maxDisplacement - plain.maxDisplacement) / plain.maxDisplacement < 1e-6, `${bear.maxDisplacement.toFixed(5)} vs ${plain.maxDisplacement.toFixed(5)}`);
+}
+
 // linear buckling: a 10 × 10 × 100 steel column, fixed at one end, pushed along its axis at the other.
 // Euler (fixed–free): P_cr = π² E I / (4 L²) = 41.1 kN; with 1 kN applied the load factor is ≈ 41.
 {

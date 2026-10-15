@@ -538,7 +538,8 @@ table.props td:first-child { color: var(--text2); }
 .cfg-head { display: flex; align-items: center; gap: 2px; }
 .cfg-head input { font-family: var(--font); font-weight: 600; width: 96px; }
 .cfg-head .iconbtn { width: 22px; height: 22px; }
-.cfg-foot { display: flex; justify-content: flex-end; margin-top: 12px; }
+.cfg-foot { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.cfg-foot .spacer { flex: 1; }
 .cfg-bar h4 svg { width: 13px; height: 13px; }
 
 /* version compare */
@@ -663,3 +664,12 @@ svg.dw-sheet.placing { cursor: crosshair; }
 .drop-hint > div { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 34px; border-radius: 14px; background: var(--bg2); box-shadow: 0 12px 40px rgba(0,0,0,.35); }
 .drop-hint svg { width: 32px; height: 32px; color: var(--accent); }
 .drop-hint small { color: var(--text3); }
+.sim-dot.bearing { background: #fb7185; }
+.sim-dot.gravity { background: #3ecf8e; }
+
+/* undo history */
+.hist-list { display: flex; flex-direction: column; gap: 2px; max-height: 320px; overflow: auto; }
+.hist-row { display: flex; align-items: center; gap: 8px; padding: 4px 2px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.hist-row > span { flex: 1; min-width: 0; }
+.hist-row .btn { flex: none; opacity: .55; }
+.hist-row:hover .btn { opacity: 1; }

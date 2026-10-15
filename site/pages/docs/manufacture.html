@@ -25,7 +25,7 @@
     <p>Choose the part in the panel. The stock is the part's bounding box plus a <b>side margin</b> and a <b>top allowance</b>. The part is machined from the top, along +Z. In the G-code, Z is zero at the top of the stock, and X and Y are measured from the front-left corner of the stock or from its centre. Set the same work origin on your machine before you run the program.</p>
 
     <h2 id="tools">Tool library</h2>
-    <p><b>Tools</b> opens the library of flat end mills, ball end mills and drills. Each tool has a diameter, a spindle speed, a cutting feed and a plunge feed in mm/min. End mills also have a step-down (depth per pass) and a step-over (a fraction of the diameter); drills have a peck depth. The starting values are cautious figures for aluminium. Check your tool maker's recommendations, and reduce them for small machines or harder materials.</p>
+    <p><b>Tools</b> opens the library of flat end mills, ball end mills, V-bits and drills. Each tool has a diameter, a spindle speed, a cutting feed and a plunge feed in mm/min. End mills also have a step-down (depth per pass) and a step-over (a fraction of the diameter); drills have a peck depth. The starting values are cautious figures for aluminium. Check your tool maker's recommendations, and reduce them for small machines or harder materials.</p>
 
     <h2 id="operations">Operations</h2>
     <table class="data">
@@ -36,6 +36,7 @@
         <tr><td>Pocket</td><td>Click the floor of a pocket. The pocket is cleared in rings from the walls inwards, in equal depth passes, and the tool goes around any islands left standing in the pocket.</td></tr>
         <tr><td>3D Rough</td><td>Clears material from curved parts in equal depth levels, following the surface where it rises above each level and leaving <b>stock to leave</b> (0.3 mm by default) for finishing. Use a flat end mill.</td></tr>
         <tr><td>3D Parallel finish</td><td>Raster passes over the whole part with a ball end mill, following the surface exactly (drop-cutter on a fine height map of the part, to the <b>tolerance</b> you set). A step-over of about 10% of the ball diameter gives a smooth finish.</td></tr>
+        <tr><td>Engrave</td><td>Follows every line, arc and curve of a sketch at a set depth: text, logos imported from DXF, part numbers and decorative grooves. Put the sketch on the part's top face. With a V-bit, the line gets wider the deeper it goes, and the panel shows the width.</td></tr>
         <tr><td>Drill</td><td>Click the round wall of each vertical hole. Holes are drilled with full-retract pecking, and through holes are drilled past the bottom by the drill's tip. You get a warning if the drill doesn't match the hole size.</td></tr>
       </tbody>
     </table>

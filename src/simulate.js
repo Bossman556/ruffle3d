@@ -21,7 +21,7 @@ const STUDIES = {
   thermal: { label: 'Thermal', short: 'Thermal', sub: 'Steady-state or transient temperatures', icon: 'simthermal' },
 };
 const THERMAL_LOADS = ['temp', 'heat', 'conv'];
-const LOAD_NAMES = { force: 'Force', pressure: 'Pressure', temp: 'Temperature', heat: 'Heat', conv: 'Convection' };
+const LOAD_NAMES = { force: 'Force', pressure: 'Pressure', bearing: 'Bearing load', gravity: 'Gravity', temp: 'Temperature', heat: 'Heat', conv: 'Convection' };
 const DIRS = [['normal', 'Normal to face (pushing in)'], ['-Z', '−Z'], ['+Z', '+Z'], ['-X', '−X'], ['+X', '+X'], ['-Y', '−Y'], ['+Y', '+Y']];
 const DIRV = { '+X': [1, 0, 0], '-X': [-1, 0, 0], '+Y': [0, 1, 0], '-Y': [0, -1, 0], '+Z': [0, 0, 1], '-Z': [0, 0, -1] };
 let seq = 0;
@@ -122,7 +122,7 @@ export class Simulation {
       <div class="tgroup" style="--icon-accent:#8a9bb0"><span class="gname">Study</span>${Object.entries(STUDIES).map(([k, s]) => b(`type:${k}`, s.icon, s.short, s.label, t === k)).join('')}</div>
       ${t === 'thermal' ? `<div class="tgroup" style="--icon-accent:#f0525b"><span class="gname">Thermal loads</span>${b('temp', 'simtemp', 'Temperature', 'Hold the faces you pick at a fixed temperature')}${b('heat', 'simheat', 'Heat', 'Heat power in watts entering through the faces you pick')}${b('conv', 'simconv', 'Convection', 'Faces cooled (or heated) by the surrounding air or fluid')}</div>`
         : `<div class="tgroup" style="--icon-accent:#4f8cff"><span class="gname">Supports</span>${b('fixed', 'simfixed', 'Fixed', 'Click faces that are held in place', this.pick === 'fixed')}</div>
-      <div class="tgroup" style="--icon-accent:#f5a524"><span class="gname">Loads</span>${b('force', 'simforce', 'Force', 'A force in newtons spread over the faces you pick', false, t === 'modal')}${b('pressure', 'simpressure', 'Pressure', 'A pressure in MPa acting on the faces you pick', false, t === 'modal')}</div>`}
+      <div class="tgroup" style="--icon-accent:#f5a524"><span class="gname">Loads</span>${b('force', 'simforce', 'Force', 'A force in newtons spread over the faces you pick', false, t === 'modal')}${b('pressure', 'simpressure', 'Pressure', 'A pressure in MPa acting on the faces you pick', false, t === 'modal')}${b('bearing', 'simforce', 'Bearing', 'A pin or shaft pushing on the round face of a hole: the force is spread over the side it presses on', false, t === 'modal')}${b('gravity', 'simdisp', 'Gravity', 'The part’s own weight (or a multiple of it, e.g. 3 g), along a direction', false, t === 'modal')}</div>`}
       <div class="tgroup" style="--icon-accent:#3ecf8e"><span class="gname">Solve</span>${b('solve', 'solve', this.running ? 'Solving…' : t === 'topology' ? 'Generate' : 'Solve', 'Mesh the body and solve the study', false, !!this.running || !st.body)}</div>
       <div class="tgroup" style="--icon-accent:#e46ee8"><span class="gname">Results</span>${results}</div>`;
     tb.onclick = (e) => {
@@ -130,7 +130,7 @@ export class Simulation {
       if (!k) return;
       if (k.startsWith('type:')) this.setType(k.slice(5));
       else if (k === 'fixed') this.setPick(this.pick === 'fixed' ? null : 'fixed');
-      else if (k === 'force' || k === 'pressure' || THERMAL_LOADS.includes(k)) this.addLoad(k);
+      else if (k === 'force' || k === 'pressure' || k === 'bearing' || k === 'gravity' || THERMAL_LOADS.includes(k)) this.addLoad(k);
       else if (k === 'solve') this.solve();
       else if (k === 'report') this.report();
       else if (k === 'animate') this.animating ? this.stopAnim() : this.startAnim();
@@ -143,10 +143,11 @@ export class Simulation {
   addLoad(type) {
     const id = `L${Date.now().toString(36)}${seq++}`;
     this.app.snapshot();
-    const defaults = { force: 100, pressure: 1, temp: 20, heat: 5, conv: 10 };
-    this.study.loads.push({ id, type, value: defaults[type] ?? 1, dir: type === 'force' ? '-Z' : 'normal', ambient: 20, faces: [] });
+    const defaults = { force: 100, pressure: 1, bearing: 500, gravity: 1, temp: 20, heat: 5, conv: 10 };
+    this.study.loads.push({ id, type, value: defaults[type] ?? 1, dir: type === 'force' || type === 'bearing' || type === 'gravity' ? '-Z' : 'normal', ambient: 20, faces: [] });
     this.app.scheduleSave();
-    this.setPick(id);
+    // gravity acts on the whole body, so there are no faces to pick
+    if (type === 'gravity') { this.app.renderRight(); this.app.renderToolbar(); } else this.setPick(id);
   }
 
   setPick(target) {
@@ -202,7 +203,7 @@ export class Simulation {
       if (!this.loadsFor().some((l) => l.faces.length && (l.type === 'temp' || l.type === 'conv'))) return app.toast('Add a fixed temperature or a convection face', 'warn');
     } else {
       if (!st.fixed.length) return app.toast('Add at least one fixed face', 'warn');
-      if (type !== 'modal' && !this.loadsFor().some((l) => l.faces.length && l.value)) return app.toast('Add a force or pressure on at least one face', 'warn');
+      if (type !== 'modal' && !this.loadsFor().some((l) => (l.faces.length || l.type === 'gravity') && l.value)) return app.toast('Add a force or pressure on at least one face', 'warn');
     }
     this.setPick(null);
     this.stopAnim();
@@ -210,9 +211,9 @@ export class Simulation {
     app.vp.setGenerative(null);
     const faceIx = (picks) => [...new Set(picks.map((pk) => app.locateFace(pk)?.faceIndex).filter((i) => i != null && i >= 0))];
     const fixed = faceIx(st.fixed);
-    const loads = type === 'modal' ? [] : this.loadsFor().filter((l) => l.faces.length && (l.value || l.type === 'temp')).map((l) => ({ faces: faceIx(l.faces), type: l.type, value: +l.value, ambient: +(l.ambient ?? 20), dir: l.type === 'force' ? (l.dir === 'normal' ? 'normal' : DIRV[l.dir]) : 'normal' }));
+    const loads = type === 'modal' ? [] : this.loadsFor().filter((l) => (l.faces.length || l.type === 'gravity') && (l.value || l.type === 'temp')).map((l) => ({ faces: faceIx(l.faces), type: l.type, value: +l.value, ambient: +(l.ambient ?? 20), dir: l.type === 'force' || l.type === 'bearing' || l.type === 'gravity' ? (l.dir === 'normal' ? 'normal' : DIRV[l.dir] || [0, 0, -1]) : 'normal' }));
     if (type !== 'thermal' && !fixed.length) return app.toast('The fixed faces no longer exist on this body. Select them again.', 'warn');
-    if (type !== 'modal' && !loads.some((l) => l.faces.length)) return app.toast('The loaded faces no longer exist on this body. Select them again.', 'warn');
+    if (type !== 'modal' && !loads.some((l) => l.faces.length || l.type === 'gravity')) return app.toast('The loaded faces no longer exist on this body. Select them again.', 'warn');
     const geo = body.data.geo.geo;
     const mat = this.material(st.body);
     const uid = app.result.bodies.find((b) => b.id === st.body)?.uid;
@@ -457,10 +458,11 @@ export class Simulation {
           <div class="sim-item"><span class="sim-dot fixed"></span><span>Fixed support</span><span class="spacer"></span>${pickBtn('fixed', st.fixed.length)}${st.fixed.length ? `<button class="iconbtn" data-clrfix data-tip="Clear">${icon('close')}</button>` : ''}</div></div>`}
         ${t !== 'modal' ? `<div class="insp-sec"><h4>${t === 'thermal' ? 'Thermal loads' : 'Loads'}</h4>
           ${this.loadsFor().length ? this.loadsFor().map((l) => `<div class="sim-load" data-load="${l.id}">
-            <div class="sim-item"><span class="sim-dot ${l.type}"></span><b>${this.loadLabel(l)}</b><span class="spacer"></span>${pickBtn(l.id, l.faces.length)}<button class="iconbtn" data-del="${l.id}" data-tip="Delete load">${icon('trash')}</button></div>
-            <div class="sim-row"><div class="field stack"><label>${{ force: 'Force (N)', pressure: 'Pressure (MPa)', temp: 'Temperature (°C)', heat: 'Power (W)', conv: 'h (W/m²·K)' }[l.type]}</label><input class="input" type="number" step="any" value="${l.value}" data-val></div>
+            <div class="sim-item"><span class="sim-dot ${l.type}"></span><b>${this.loadLabel(l)}</b><span class="spacer"></span>${l.type === 'gravity' ? '<small class="muted">whole body</small>' : pickBtn(l.id, l.faces.length)}<button class="iconbtn" data-del="${l.id}" data-tip="Delete load">${icon('trash')}</button></div>
+            <div class="sim-row"><div class="field stack"><label>${{ force: 'Force (N)', pressure: 'Pressure (MPa)', bearing: 'Total force (N)', gravity: 'Acceleration (g)', temp: 'Temperature (°C)', heat: 'Power (W)', conv: 'h (W/m²·K)' }[l.type]}</label><input class="input" type="number" step="any" value="${l.value}" data-val></div>
             ${l.type === 'conv' ? `<div class="field stack"><label>Ambient (°C)</label><input class="input" type="number" step="any" value="${l.ambient ?? 20}" data-amb></div>` : ''}
-            ${l.type === 'force' ? `<div class="field stack"><label>Direction</label><select class="input" data-dir>${DIRS.map(([v, tt]) => `<option value="${v}" ${l.dir === v ? 'selected' : ''}>${tt}</option>`).join('')}</select></div>` : ''}</div></div>`).join('') : `<div class="empty">${t === 'thermal' ? 'Add a Temperature, Heat or Convection load from the toolbar. Typical h: still air 5–10, a fan 25–100, water 500+ W/m²·K.' : 'Add a Force or Pressure from the toolbar.'}</div>`}</div>` : ''}
+            ${l.type === 'force' || l.type === 'bearing' || l.type === 'gravity' ? `<div class="field stack"><label>Direction</label><select class="input" data-dir>${DIRS.filter(([v]) => l.type === 'force' || v !== 'normal').map(([v, tt]) => `<option value="${v}" ${l.dir === v ? 'selected' : ''}>${tt}</option>`).join('')}</select></div>` : ''}</div>
+            ${l.type === 'bearing' ? '<div class="help">Pick the round face of a hole. The direction is the way the pin pushes on the part.</div>' : l.type === 'gravity' ? '<div class="help">1 = the part’s own weight from its material density. Use 3 or more for shock and transport loads.</div>' : ''}</div>`).join('') : `<div class="empty">${t === 'thermal' ? 'Add a Temperature, Heat or Convection load from the toolbar. Typical h: still air 5–10, a fan 25–100, water 500+ W/m²·K.' : 'Add a Force or Pressure from the toolbar.'}</div>`}</div>` : ''}
         ${t === 'modal' ? `<div class="insp-sec"><h4>Modes</h4><div class="field"><label>Number of modes</label><div class="seg" data-modes>${[2, 4, 6].map((n) => `<button data-v="${n}" class="${st.modes === n ? 'on' : ''}">${n}</button>`).join('')}</div></div></div>` : ''}
         ${t === 'topology' ? `<div class="insp-sec"><h4>Target</h4><div class="field"><label>Keep material<span class="val" data-vv>${st.volume}%</span></label><input type="range" min="10" max="80" step="5" value="${st.volume}" data-vol></div>
           <div class="help">The optimiser keeps this share of the body's volume and places it where it makes the part stiffest under the loads.</div></div>` : ''}
@@ -529,7 +531,7 @@ export class Simulation {
       const minSF = r.material.yield / Math.max(r.maxAwayFromSupports, 1e-9);
       body = `<h2>Summary</h2><table>${row('Peak von Mises stress (away from supports)', `${sig(r.maxAwayFromSupports)} MPa`)}${row('Von Mises stress at the supports', `${sig(r.maxVonMises)} MPa`)}${row('Maximum displacement', `${sig(r.maxDisplacement)} mm`)}${row('Minimum safety factor', fmt(minSF, 2))}</table>
 <h2>Material</h2><table>${row('Material', esc(r.material.name))}${row("Young's modulus", `${fmt(r.material.E / 1000, 1)} GPa`)}${row("Poisson's ratio", fmt(r.material.nu, 2))}${row(r.material.brittle ? 'Strength' : 'Yield strength', `${fmt(r.material.yield, 0)} MPa`)}</table>
-<h2>Boundary conditions</h2><table>${row('Fixed supports', `${r.fixedFaces} face${r.fixedFaces === 1 ? '' : 's'}`)}${r.loads.filter((l) => l.faces).map((l, i) => row(`${l.type === 'force' ? 'Force' : 'Pressure'} ${i + 1}`, l.type === 'force' ? `${sig(l.value)} N, ${l.dir === 'normal' ? 'normal to the faces' : `along ${l.dir}`}, on ${l.faces} face${l.faces === 1 ? '' : 's'}` : `${sig(l.value)} MPa on ${l.faces} face${l.faces === 1 ? '' : 's'}`)).join('')}${row('Total applied force', `${r.appliedForce.map((v) => sig(v)).join(', ')} N (X, Y, Z)`)}</table>
+<h2>Boundary conditions</h2><table>${row('Fixed supports', `${r.fixedFaces} face${r.fixedFaces === 1 ? '' : 's'}`)}${r.loads.filter((l) => l.faces || l.type === 'gravity').map((l, i) => row(`${LOAD_NAMES[l.type] || 'Load'} ${i + 1}`, l.type === 'gravity' ? `${sig(l.value)} g along ${l.dir} (self-weight)` : l.type === 'bearing' ? `${sig(l.value)} N along ${l.dir}, as a bearing load on ${l.faces} face${l.faces === 1 ? '' : 's'}` : l.type === 'force' ? `${sig(l.value)} N, ${l.dir === 'normal' ? 'normal to the faces' : `along ${l.dir}`}, on ${l.faces} face${l.faces === 1 ? '' : 's'}` : `${sig(l.value)} MPa on ${l.faces} face${l.faces === 1 ? '' : 's'}`)).join('')}${row('Total applied force', `${r.appliedForce.map((v) => sig(v)).join(', ')} N (X, Y, Z)`)}</table>
 <h2>Mesh and solver</h2><table>${row('Elements', `${fmt(r.elements, 0)} hexahedra, ${sig(r.h)} mm`)}${row('Nodes', fmt(r.nodes, 0))}${row('Solver', `Multigrid-preconditioned conjugate gradients, ${r.iterations} iterations, ${r.converged ? 'converged' : 'not fully converged'}`)}${row('Solve time', `${fmt(r.seconds, 1)} s`)}</table>
 <h2>Assumptions</h2><p class="note">Linear elastic, isotropic material; small deflections; static loads. The body is meshed into equal cubic elements with incompatible bending modes. Stresses at sharp inside corners and at the edges of fixed faces are singular in theory and depend on mesh size. Use these results to compare designs and find weak spots, and confirm critical parts by testing.</p>`;
     }

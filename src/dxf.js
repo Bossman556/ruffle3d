@@ -239,6 +239,11 @@ export function writeDXF(ents, units = 4) {
       out.push('0', 'POLYLINE', '8', lay, '66', '1', '10', '0', '20', '0', '30', '0', '70', e.closed ? '1' : '0');
       for (const q of e.pts) out.push('0', 'VERTEX', '8', lay, '10', f(q[0]), '20', f(q[1]), '30', '0');
       out.push('0', 'SEQEND', '8', lay);
+    } else if (e.t === 'TEXT') {
+      // align 0 left, 1 centre, 2 right; centred and right text are placed by their second alignment point
+      const txt = String(e.text).replace(/\s+/g, ' ');
+      out.push('0', 'TEXT', '8', lay, '10', f(e.p[0]), '20', f(e.p[1]), '30', '0', '40', f(e.h || 2.5), '1', txt, '50', f(e.rot || 0));
+      if (e.align) out.push('72', String(e.align), '11', f(e.p[0]), '21', f(e.p[1]), '31', '0');
     }
   }
   out.push('0', 'ENDSEC', '0', 'EOF');

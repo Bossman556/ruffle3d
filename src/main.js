@@ -28,12 +28,16 @@ import { CamWorkspace } from './cam.js';
 import { requestPersistence, writeToFolder, backupAll } from './backup.js';
 import { faceSigFromMesh, edgeSigFromSegments } from './picksig.js';
 import { AssemblyTools } from './assembly.js';
+import { configsToCSV, parseCSV, applyConfigTable } from './configcsv.js';
+import { describeChange } from './history.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const fmt = (x, d = 2) => (Number.isFinite(x) ? (+x.toFixed(d)).toLocaleString(undefined, { maximumFractionDigits: d }) : '–');
 const LEGACY_KEY = 'ruffle3d.autosave.v1';
 const LAST_KEY = 'ruffle3d.lastProject';
+// four significant figures, without exponent notation for everyday sizes
+const sig4 = (v) => (Math.abs(v) >= 1e-3 && Math.abs(v) < 1e9 ? (+v.toPrecision(4)).toLocaleString(undefined, { maximumFractionDigits: 6 }) : v.toExponential(3));
 const SITE = 'https://www.ruffle3d.site';
 // version strings like 0.10.2 compared part by part
 const newerVersion = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
@@ -381,6 +385,7 @@ class App {
     this.changed();
   }
   changed() {
+    if (this.leftTab === 'history') queueMicrotask(() => { if (this.leftTab === 'history') this.renderVersions(); });
     this.refreshAll();
     this.scheduleSave();
     return this.rebuild();
@@ -1956,11 +1961,30 @@ class App {
     };
   }
 
+  // the most recent changes from the undo stack, described by comparing each snapshot with the next
+  historyHTML() {
+    const st = this.undoStack, n = st.length, r = this.redoStack.length;
+    const redo = r ? `<div class="muted small" style="margin-top:6px">${r} undone change${r === 1 ? '' : 's'} can be redone with Ctrl Y.</div>` : '';
+    if (!n) return `<div class="insp-sec"><h4>Recent changes</h4><div class="muted small">Changes you make appear here, and you can go back to any of them.</div>${redo}</div>`;
+    this._histCache ||= new Map();
+    const parse = (s) => { let d = this._histCache.get(s); if (!d) { d = JSON.parse(s); this._histCache.set(s, d); if (this._histCache.size > 80) this._histCache.delete(this._histCache.keys().next().value); } return d; };
+    const rows = [];
+    for (let i = n - 1; i >= Math.max(0, n - 25); i--) rows.push(`<div class="hist-row"><span>${esc(describeChange(parse(st[i]), i + 1 < n ? parse(st[i + 1]) : this.doc))}</span><button class="btn sm ghost" data-undoto="${i}" data-tip="Go back to just before this change">${icon('reset')}Undo to here</button></div>`);
+    return `<div class="insp-sec"><h4>Recent changes</h4><div class="hist-list">${rows.join('')}</div>${n > 25 ? `<div class="muted small">${n - 25} older change${n - 25 === 1 ? '' : 's'} can be undone with Ctrl Z.</div>` : ''}${redo}</div>`;
+  }
+
   async renderVersions() {
     const body = $('#left-body');
     body.innerHTML = `<div class="insp"><div class="insp-sec"><button class="btn primary" data-save style="width:100%">${icon('history')}Save version</button>
-      <p class="muted" style="margin-top:10px">Versions are snapshots you can restore later. Your work is also autosaved continuously.</p></div><div id="vlist"></div></div>`;
+      <p class="muted" style="margin-top:10px">Versions are snapshots you can restore later. Your work is also autosaved continuously.</p></div>${this.historyHTML()}<div id="vlist"></div></div>`;
     body.querySelector('[data-save]').onclick = () => this.saveVersion();
+    // undo history: "Undo to here" goes back to just before that change (redo still steps forward again)
+    body.querySelectorAll('[data-undoto]').forEach((b) => (b.onclick = () => {
+      const steps = this.undoStack.length - +b.dataset.undoto;
+      for (let i = 0; i < steps; i++) { const st = this.undoStack.pop(); if (!st) break; this.redoStack.push(JSON.stringify(this.doc)); this.doc = JSON.parse(st); }
+      this.changed();
+      this.toast(`Went back ${steps} step${steps === 1 ? '' : 's'}. Ctrl Y steps forward again.`, 'ok');
+    }));
     if (!this.projectId) return;
     const vs = await store.listVersions(this.projectId);
     const list = body.querySelector('#vlist');
@@ -2165,7 +2189,14 @@ class App {
       <div class="stat"><small>Surface area</small><b>${this.area(pr.area)}</b></div>
       <div class="stat"><small>Density</small><b>${mat.density} g/cm³</b></div>`;
     $('#bkv').innerHTML = `<dt>Size X × Y × Z</dt><dd>${[0, 1, 2].map((i) => fmt((hi[i] - lo[i]) / this.units.scale, 2)).join(' × ')} ${this.units.label}</dd>
-      <dt>Center of mass</dt><dd>${pr.centerOfMass.map((v) => fmt(v / this.units.scale, 2)).join(', ')}</dd>`;
+      <dt>Center of mass</dt><dd>${pr.centerOfMass.map((v) => fmt(v / this.units.scale, 2)).join(', ')}</dd>
+      ${pr.inertia ? (() => {
+        // mm⁵ × g/cm³ × 1e-3 → g·mm², shown in kg·mm² (about the centre of mass, in model axes)
+        const k = (mat.density * 1e-3) / 1000, J = pr.inertia.tensor, big = Math.max(...J.flat().map(Math.abs)), f = (v) => (Math.abs(v) < big * 1e-9 ? '0' : sig4(v * k));
+        return `<dt>Principal moments</dt><dd>${pr.inertia.principal.map((q) => f(q.moment)).join(', ')} kg·mm²</dd>
+          <dt>Principal axes</dt><dd>${pr.inertia.principal.map((q) => `(${q.axis.map((v) => fmt(v, 3)).join(', ')})`).join('<br>')}</dd>
+          <dt>Inertia tensor</dt><dd title="About the centre of mass, in model axes, kg·mm²">${J.map((r) => r.map(f).join('  ')).join('<br>')}</dd>`;
+      })() : ''}`;
   }
 
   renderProfilePanel(sketchId) {
@@ -2713,7 +2744,8 @@ class App {
         ${doc.params.map((p, i) => `<tr><td><b>${esc(p.name)}</b>${p.comment ? `<small>${esc(p.comment)}</small>` : ''}</td><td><input data-base="${i}" value="${esc(p.expr)}" spellcheck="false"></td>
           ${cfgs.map((c) => `<td><input data-cv="${c.id}" data-p="${esc(p.name)}" value="${esc(c.values?.[p.name] ?? '')}" placeholder="${esc(p.expr)}" spellcheck="false"></td>`).join('')}<td></td></tr>`).join('') || `<tr><td colspan="${cfgs.length + 3}" class="muted">Add parameters in the Parameters tab first.</td></tr>`}
         </tbody></table></div>
-        <div class="cfg-foot"><button class="btn sm" data-stepall ${cfgs.length ? '' : 'disabled'}>${icon('export')}Export STEP for every configuration</button></div>`;
+        <div class="cfg-foot"><button class="btn sm" data-stepall ${cfgs.length ? '' : 'disabled'}>${icon('export')}Export STEP for every configuration</button>
+          <span class="spacer"></span><button class="btn sm" data-csvout ${doc.params.length ? '' : 'disabled'}>${icon('download')}Export CSV</button><button class="btn sm" data-csvin ${doc.params.length ? '' : 'disabled'}>${icon('upload')}Import CSV</button></div>`;
       box.querySelector('[data-addcfg]').onclick = () => {
         this.snapshot();
         const n = cfgs.length + 1;
@@ -2734,6 +2766,26 @@ class App {
         this.renderLeft();
       }));
       box.querySelector('[data-stepall]').onclick = () => this.exportAllConfigs();
+      // the table as a spreadsheet: Parameter, Default, then one column per configuration
+      box.querySelector('[data-csvout]').onclick = () => this.download(new Blob([configsToCSV(doc.params, doc.configs)], { type: 'text/csv' }), `${doc.name} configurations.csv`);
+      box.querySelector('[data-csvin]').onclick = () => {
+        const inp = document.createElement('input');
+        inp.type = 'file';
+        inp.accept = '.csv,text/csv';
+        inp.onchange = async () => {
+          const file = inp.files[0];
+          if (!file) return;
+          try {
+            const r = applyConfigTable(doc.params, doc.configs, parseCSV(await file.text()));
+            this.snapshot();
+            doc.params = r.params;
+            doc.configs = r.configs;
+            this.changed(); render(); this.renderLeft(); this.renderVpInfo();
+            this.toast(`Imported ${file.name}: ${r.changed} value${r.changed === 1 ? '' : 's'} changed${r.added ? `, ${r.added} new configuration${r.added === 1 ? '' : 's'}` : ''}${r.unknown.length ? `. Skipped unknown parameters: ${r.unknown.join(', ')}` : ''}`, r.unknown.length ? 'warn' : 'ok');
+          } catch (e) { this.toast(`Could not import ${file.name}: ${e.message}`, 'warn'); }
+        };
+        inp.click();
+      };
     };
     const m = this.modal('Configurations', '', { wide: true, ic: 'configs', cancel: false, sub: esc(doc.name) });
     render();

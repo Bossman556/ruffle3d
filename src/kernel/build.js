@@ -75,17 +75,20 @@ const largestRegion = (sk, pts) => pickRegions(sk, pts).sort((a, b) => b.area - 
 // Orders the open curves of a sketch into a single path wire (for sweeps).
 // The path of a sketch as one 2D polyline in order (lines exact; arcs, circles and splines sampled),
 // with cumulative lengths. Used to place instances along a path.
+// a sketch curve as a 2D polyline (lines exact; arcs, circles and splines finely sampled)
+function sampleSketchCurve(g) {
+  if (g.type === 'line') return [g.a, g.b];
+  if (g.type === 'circle') return Array.from({ length: 257 }, (_, i) => [g.c[0] + g.r * Math.cos((i / 256) * 2 * Math.PI), g.c[1] + g.r * Math.sin((i / 256) * 2 * Math.PI)]);
+  if (g.type === 'arc') { const n = Math.max(8, Math.ceil(g.sweep / 0.02)); return Array.from({ length: n + 1 }, (_, i) => { const t = g.a0 + (g.sweep * i) / n; return [g.c[0] + g.r * Math.cos(t), g.c[1] + g.r * Math.sin(t)]; }); }
+  const out = [];
+  g.bez.forEach((b, j) => { for (let k = j ? 1 : 0; k <= 48; k++) { const t = k / 48, u = 1 - t; out.push([0, 1].map((d) => u * u * u * b[0][d] + 3 * u * u * t * b[1][d] + 3 * u * t * t * b[2][d] + t * t * t * b[3][d])); } });
+  return out;
+}
+
 function pathPolyline(sk) {
   const gs = sk.geom.filter((g) => !g.construction);
   if (!gs.length) throw new Error('Path sketch is empty');
-  const sample = (g) => {
-    if (g.type === 'line') return [g.a, g.b];
-    if (g.type === 'circle') return Array.from({ length: 257 }, (_, i) => [g.c[0] + g.r * Math.cos((i / 256) * 2 * Math.PI), g.c[1] + g.r * Math.sin((i / 256) * 2 * Math.PI)]);
-    if (g.type === 'arc') { const n = Math.max(8, Math.ceil(g.sweep / 0.02)); return Array.from({ length: n + 1 }, (_, i) => { const t = g.a0 + (g.sweep * i) / n; return [g.c[0] + g.r * Math.cos(t), g.c[1] + g.r * Math.sin(t)]; }); }
-    const out = [];
-    g.bez.forEach((b, j) => { for (let k = j ? 1 : 0; k <= 48; k++) { const t = k / 48, u = 1 - t; out.push([0, 1].map((d) => u * u * u * b[0][d] + 3 * u * u * t * b[1][d] + 3 * u * t * t * b[2][d] + t * t * t * b[3][d])); } });
-    return out;
-  };
+  const sample = sampleSketchCurve;
   let pts;
   if (gs.length === 1) pts = sample(gs[0]);
   else {
@@ -2331,9 +2334,43 @@ export function meshShape(shape) {
 
 export function properties(shape) {
   const bb = bboxOf(shape);
-  let com = bb.center;
-  try { com = measureShapeVolumeProperties(shape).centerOfMass; } catch { /* keep bbox center */ }
-  return { volume: measureVolume(shape), area: measureArea(shape), bbox: [bb.lo, bb.hi], centerOfMass: com };
+  let com = bb.center, inertia = null;
+  try {
+    const vp = measureShapeVolumeProperties(shape);
+    com = vp.centerOfMass;
+    inertia = inertiaOf(vp.wrapped, com);
+  } catch { /* keep bbox center */ }
+  return { volume: measureVolume(shape), area: measureArea(shape), bbox: [bb.lo, bb.hi], centerOfMass: com, inertia };
+}
+
+// Inertia tensor about the centre of mass, for unit density (mm⁵; multiply by density for mass inertia).
+// This kernel build can't return OpenCascade's matrix, but it gives the moment about any axis, I(d) = dᵀJd:
+// three axes give the diagonal, and the three diagonals between them give the products. Principal moments
+// and axes come from the symmetric 3×3 eigen-decomposition.
+function inertiaOf(props, c) {
+  const I = (d) => { const l = Math.hypot(...d), ax = makeAx1(c, d.map((v) => v / l)); try { return props.MomentOfInertia(ax); } finally { ax.delete(); } };
+  const xx = I([1, 0, 0]), yy = I([0, 1, 0]), zz = I([0, 0, 1]);
+  const xy = I([1, 1, 0]) - (xx + yy) / 2, yz = I([0, 1, 1]) - (yy + zz) / 2, zx = I([1, 0, 1]) - (zz + xx) / 2;
+  const J = [[xx, xy, zx], [xy, yy, yz], [zx, yz, zz]];
+  const { values, vectors } = sym3Eigen(J);
+  const order = [0, 1, 2].sort((a, b) => values[a] - values[b]);
+  return { tensor: J, principal: order.map((i) => ({ moment: values[i], axis: vectors[i] })) };
+}
+function sym3Eigen(A0) {
+  const A = A0.map((r) => r.slice()), V = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  for (let sweep = 0; sweep < 50; sweep++) {
+    let off = 0;
+    for (let p = 0; p < 3; p++) for (let q = p + 1; q < 3; q++) off += A[p][q] ** 2;
+    if (off < 1e-30 * (A[0][0] ** 2 + A[1][1] ** 2 + A[2][2] ** 2 + 1e-300)) break;
+    for (let p = 0; p < 3; p++) for (let q = p + 1; q < 3; q++) {
+      if (Math.abs(A[p][q]) < 1e-300) continue;
+      const th = (A[q][q] - A[p][p]) / (2 * A[p][q]), t = Math.sign(th || 1) / (Math.abs(th) + Math.sqrt(th * th + 1)), cs = 1 / Math.sqrt(t * t + 1), sn = t * cs;
+      for (let k = 0; k < 3; k++) { const akp = A[k][p], akq = A[k][q]; A[k][p] = cs * akp - sn * akq; A[k][q] = sn * akp + cs * akq; }
+      for (let k = 0; k < 3; k++) { const apk = A[p][k], aqk = A[q][k]; A[p][k] = cs * apk - sn * aqk; A[q][k] = sn * apk + cs * aqk; }
+      for (let k = 0; k < 3; k++) { const vkp = V[k][p], vkq = V[k][q]; V[k][p] = cs * vkp - sn * vkq; V[k][q] = sn * vkp + cs * vkq; }
+    }
+  }
+  return { values: [A[0][0], A[1][1], A[2][2]], vectors: [0, 1, 2].map((j) => [V[0][j], V[1][j], V[2][j]]) };
 }
 
 export function exportShapes(list, format) {
@@ -2640,6 +2677,34 @@ export function camToolpaths(state, cam) {
             zc = zn;
           }
         }
+      } else if (op.type === 'engrave') {
+        // engrave: follow every curve of a horizontal sketch, down to a depth below the sketch plane
+        const sk = state.sketches.get(op.sketch);
+        if (!sk) throw new Error('Choose the sketch to engrave');
+        const pl = sk.plane;
+        if (Math.abs(Math.abs(pl.normal[2]) - 1) > 1e-6) throw new Error('Engraving needs a sketch on a horizontal plane or a flat top face');
+        const y = yDirOf(pl), to3 = (q) => add(pl.origin, add(mul(pl.xDir, q[0]), mul(y, q[1])));
+        const top = pl.origin[2], depth = Math.max(0.01, op.depth ?? 0.5), bottom = top - depth;
+        let paths = sk.geom.filter((g) => !g.construction).map((g) => sampleSketchCurve(g).map(to3));
+        if (!paths.length) throw new Error('The sketch has no curves to engrave');
+        // visit the curves nearest-first (reversing them when that is shorter) to cut down on rapids
+        const ordered = [];
+        let cur = [stock.lo[0], stock.lo[1]];
+        while (paths.length) {
+          let bi = 0, rev = false, bd = Infinity;
+          paths.forEach((q, i) => { const a = Math.hypot(q[0][0] - cur[0], q[0][1] - cur[1]), b = Math.hypot(q[q.length - 1][0] - cur[0], q[q.length - 1][1] - cur[1]); if (a < bd) { bd = a; bi = i; rev = false; } if (b < bd) { bd = b; bi = i; rev = true; } });
+          const q = paths.splice(bi, 1)[0], pth = rev ? q.slice().reverse() : q;
+          ordered.push(simplifyPath(pth.map((p3) => [p3[0], p3[1], 0]), 0.002));
+          cur = pth[pth.length - 1];
+        }
+        for (const pth of ordered) for (const zz of levels(top, bottom, tool.stepdown || depth)) {
+          at([pth[0][0], pth[0][1], clear], true);
+          at([pth[0][0], pth[0][1], zz], false);
+          for (let i = 1; i < pth.length; i++) at([pth[i][0], pth[i][1], zz], false);
+          at([pth[pth.length - 1][0], pth[pth.length - 1][1], clear], true);
+        }
+        if (top > stock.part.hi[2] + 1e-6) res.warnings.push('The sketch is above the part, so the cut is in the air');
+        if (tool.type === 'vbit') res.warnings.push(`A ${fmtN(tool.angle || 90)}° V-bit at ${fmtN(depth)} mm deep cuts lines ${fmtN(2 * depth * Math.tan(((tool.angle || 90) * Math.PI) / 360))} mm wide`);
       } else if (op.type === 'rough3d' || op.type === 'parallel') {
         // 3D: Z-level roughing (terraces that follow the surface, leaving stock) or parallel finishing
         const finish = op.type === 'parallel';

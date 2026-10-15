@@ -15,6 +15,8 @@ export const TOOL_LIBRARY = [
   { id: 'fm25', name: '25 mm face mill', type: 'flat', d: 25, flutes: 4, rpm: 8000, feed: 1800, plunge: 300, stepdown: 1, stepover: 0.7 },
   { id: 'bm3', name: '3 mm ball end mill', type: 'ball', d: 3, flutes: 2, rpm: 18000, feed: 900, plunge: 200, stepdown: 0.5, stepover: 0.1 },
   { id: 'bm6', name: '6 mm ball end mill', type: 'ball', d: 6, flutes: 2, rpm: 15000, feed: 1200, plunge: 300, stepdown: 1, stepover: 0.1 },
+  { id: 'vb90', name: '90° V-bit', type: 'vbit', d: 6, angle: 90, flutes: 2, rpm: 16000, feed: 700, plunge: 150, stepdown: 0.3, stepover: 0.4 },
+  { id: 'vb60', name: '60° V-bit', type: 'vbit', d: 6, angle: 60, flutes: 2, rpm: 16000, feed: 600, plunge: 150, stepdown: 0.3, stepover: 0.4 },
   { id: 'dr3', name: '3 mm drill', type: 'drill', d: 3, rpm: 6000, feed: 200, plunge: 200, peck: 3 },
   { id: 'dr5', name: '5 mm drill', type: 'drill', d: 5, rpm: 4500, feed: 220, plunge: 220, peck: 5 },
   { id: 'dr6', name: '6 mm drill', type: 'drill', d: 6, rpm: 4000, feed: 240, plunge: 240, peck: 6 },
@@ -25,6 +27,7 @@ export const OPS = {
   profile: { label: '2D Profile', icon: 'camprofile', desc: 'Follow the outline of a flat face, outside or inside, to a depth or through' },
   pocket: { label: 'Pocket', icon: 'campocket', desc: 'Clear a pocket down to the floor face you pick, around any islands' },
   drill: { label: 'Drill', icon: 'camdrill', desc: 'Peck-drill vertical holes' },
+  engrave: { label: 'Engrave', icon: 'camprofile', desc: 'Follow the lines of a sketch at a set depth: text, logos and markings, with a V-bit or an end mill' },
   rough3d: { label: '3D Rough', icon: 'campocket', desc: 'Z-level roughing of curved parts, leaving stock for finishing' },
   parallel: { label: '3D Parallel finish', icon: 'camface', desc: 'Raster finishing of curved surfaces with a ball end mill' },
 };
@@ -76,7 +79,7 @@ export class CamWorkspace {
     const d = this.app.doc;
     d.cam ||= { body: null, setup: { margin: 3, top: 1, safe: 10, origin: 'stock-top-left' }, tools: Object.fromEntries(TOOL_LIBRARY.map((t) => [t.id, { ...t }])), ops: [] };
     // projects saved before ball end mills were in the library get them added
-    for (const t of TOOL_LIBRARY) if (t.type === 'ball' && !Object.values(d.cam.tools).some((x) => x.type === 'ball')) d.cam.tools[t.id] = { ...t };
+    for (const kind of ['ball', 'vbit']) if (!Object.values(d.cam.tools).some((x) => x.type === kind)) for (const t of TOOL_LIBRARY) if (t.type === kind) d.cam.tools[t.id] = { ...t };
     return d.cam;
   }
   solidBodies() { return this.app.result.bodies.filter((b) => !b.surface); }
@@ -113,13 +116,15 @@ export class CamWorkspace {
     if (!c.body) return this.app.toast('There is no solid body to machine', 'warn');
     this.app.snapshot();
     const flats = Object.values(c.tools).filter((t) => t.type === 'flat'), drills = Object.values(c.tools).filter((t) => t.type === 'drill');
-    const balls = Object.values(c.tools).filter((t) => t.type === 'ball');
-    const tool = type === 'drill' ? drills[0] : type === 'face' ? flats.sort((a, b) => b.d - a.d)[0] : type === 'parallel' ? balls.sort((a, b) => a.d - b.d)[0] || flats[0] : flats.find((t) => t.d === 6) || flats[0];
-    const op = { id: `op${Date.now().toString(36)}${seq++}`, type, tool: tool?.id, faces: [], side: 'outside', through: true, top: 'part', ...(type === 'profile' ? { tabs: 4, tabWidth: 6, tabHeight: 1.5 } : type === 'rough3d' ? { leave: 0.3, tolerance: 0.2, boundary: 'part' } : type === 'parallel' ? { leave: 0, tolerance: 0.1, boundary: 'part' } : {}) };
+    const balls = Object.values(c.tools).filter((t) => t.type === 'ball'), vbits = Object.values(c.tools).filter((t) => t.type === 'vbit');
+    const flatSketch = (this.app.result.sketches || []).find((k) => Math.abs(Math.abs(k.plane.normal[2]) - 1) < 1e-6);
+    const tool = type === 'drill' ? drills[0] : type === 'face' ? flats.sort((a, b) => b.d - a.d)[0] : type === 'parallel' ? balls.sort((a, b) => a.d - b.d)[0] || flats[0] : type === 'engrave' ? vbits[0] || flats.sort((a, b) => a.d - b.d)[0] : flats.find((t) => t.d === 6) || flats[0];
+    const op = { id: `op${Date.now().toString(36)}${seq++}`, type, tool: tool?.id, faces: [], side: 'outside', through: true, top: 'part', ...(type === 'engrave' ? { sketch: flatSketch?.id || null, depth: 0.5 } : type === 'profile' ? { tabs: 4, tabWidth: 6, tabHeight: 1.5 } : type === 'rough3d' ? { leave: 0.3, tolerance: 0.2, boundary: 'part' } : type === 'parallel' ? { leave: 0, tolerance: 0.1, boundary: 'part' } : {}) };
     c.ops.push(op);
     this.sel = op.id;
     this.app.scheduleSave();
-    if (type === 'face' || type === 'rough3d' || type === 'parallel') this.compute(); else this.setPick(op.id);
+    if (type === 'engrave' && !flatSketch) this.app.toast('Draw the text or logo in a sketch on a horizontal plane or the top face first, then choose it here', 'warn');
+    if (type === 'face' || type === 'rough3d' || type === 'parallel' || type === 'engrave') this.compute(); else this.setPick(op.id);
   }
 
   setPick(id) {
@@ -224,7 +229,7 @@ export class CamWorkspace {
       const rows = Object.values(c.tools);
       const num = (t, k, step = 1) => `<input class="input" type="number" step="${step}" value="${t[k] ?? ''}" data-t="${t.id}" data-k="${k}">`;
       m.querySelector('.tools').innerHTML = `<div class="table-scroll"><table class="bom-table tool-table"><thead><tr><th>Name</th><th>Type</th><th class="n">Ø mm</th><th class="n">rpm</th><th class="n">Feed</th><th class="n">Plunge</th><th class="n">Step down</th><th class="n">Step over / peck</th><th></th></tr></thead><tbody>
-        ${rows.map((t) => `<tr><td><input class="input" value="${esc(t.name)}" data-t="${t.id}" data-k="name"></td><td>${t.type === 'drill' ? 'Drill' : t.type === 'ball' ? 'Ball end mill' : 'Flat end mill'}</td><td>${num(t, 'd', 0.1)}</td><td>${num(t, 'rpm', 100)}</td><td>${num(t, 'feed', 10)}</td><td>${num(t, 'plunge', 10)}</td><td>${t.type === 'drill' ? '–' : num(t, 'stepdown', 0.1)}</td><td>${t.type === 'drill' ? num(t, 'peck', 0.5) : num(t, 'stepover', 0.05)}</td><td><button class="iconbtn" data-del="${t.id}" data-tip="Delete">${icon('trash')}</button></td></tr>`).join('')}
+        ${rows.map((t) => `<tr><td><input class="input" value="${esc(t.name)}" data-t="${t.id}" data-k="name"></td><td>${t.type === 'drill' ? 'Drill' : t.type === 'ball' ? 'Ball end mill' : t.type === 'vbit' ? `${t.angle || 90}° V-bit` : 'Flat end mill'}</td><td>${num(t, 'd', 0.1)}</td><td>${num(t, 'rpm', 100)}</td><td>${num(t, 'feed', 10)}</td><td>${num(t, 'plunge', 10)}</td><td>${t.type === 'drill' ? '–' : num(t, 'stepdown', 0.1)}</td><td>${t.type === 'drill' ? num(t, 'peck', 0.5) : num(t, 'stepover', 0.05)}</td><td><button class="iconbtn" data-del="${t.id}" data-tip="Delete">${icon('trash')}</button></td></tr>`).join('')}
         </tbody></table></div>
         <div class="bom-actions"><button class="btn sm" data-add="flat">${icon('plus')}End mill</button><button class="btn sm" data-add="drill">${icon('plus')}Drill</button></div>
         <p class="help" style="margin-top:10px">These are cautious starting values for aluminium. Check your tool maker's recommendations, and reduce them for small machines.</p>`;
@@ -256,7 +261,7 @@ export class CamWorkspace {
     const op = this.sel && c.ops.find((o) => o.id === this.sel);
     const total = r ? r.ops.reduce((s, o) => s + (c.ops.find((x) => x.id === o.id && !x.suppressed) ? o.time : 0), 0) : 0;
     const tools = Object.values(c.tools);
-    const toolSel = (o) => `<select class="input" data-tool>${tools.filter((t) => (o.type === 'drill' ? t.type === 'drill' : t.type !== 'drill')).map((t) => `<option value="${t.id}" ${t.id === o.tool ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select>`;
+    const toolSel = (o) => `<select class="input" data-tool>${tools.filter((t) => (o.type === 'drill' ? t.type === 'drill' : o.type === 'engrave' ? t.type !== 'drill' : t.type !== 'drill' && t.type !== 'vbit')).map((t) => `<option value="${t.id}" ${t.id === o.tool ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select>`;
     let detail = '';
     if (op) {
       const R = opRes(op.id), def = OPS[op.type];
@@ -265,7 +270,10 @@ export class CamWorkspace {
         ${op.type === 'rough3d' || op.type === 'parallel' ? `<div class="field"><label>Stock to leave</label><div class="num"><input type="number" step="0.05" min="0" data-num="leave" value="${op.leave ?? 0}"><span class="unit">mm</span></div></div>
           <div class="field"><label>Tolerance</label><div class="num"><input type="number" step="0.05" min="0.05" data-num="tolerance" value="${op.tolerance ?? 0.2}"><span class="unit">mm</span></div></div>
           <div class="field"><label>Area</label><div class="seg" data-bnd>${[['part', 'Part outline'], ['stock', 'Whole stock']].map(([v, l]) => `<button data-v="${v}" class="${(op.boundary || 'part') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>` : ''}
-        ${op.type !== 'face' && op.type !== 'rough3d' && op.type !== 'parallel' ? `<div class="field"><label>${op.type === 'drill' ? 'Holes' : 'Faces'}</label><button class="btn sm ${this.pick === op.id ? 'primary' : ''}" data-pick>${icon('pointer')}${this.pick === op.id ? 'Done' : `${op.faces.length} selected`}</button></div>` : ''}
+        ${op.type === 'engrave' ? `<div class="field"><label>Sketch</label><select class="input" data-esk>${(this.app.result.sketches || []).filter((k) => Math.abs(Math.abs(k.plane.normal[2]) - 1) < 1e-6).map((k) => `<option value="${k.id}" ${k.id === op.sketch ? 'selected' : ''}>${esc(this.app.doc.features.find((f) => f.id === k.id)?.name || k.id)}</option>`).join('') || '<option value="">No horizontal sketches</option>'}</select></div>
+          <div class="field"><label>Depth</label><div class="num"><input type="number" step="0.05" min="0.01" data-num="depth" value="${op.depth ?? 0.5}"><span class="unit">mm</span></div></div>
+          <div class="help">The tool follows every line, arc and curve of the sketch, below the sketch plane. Put the sketch on the part's top face. With a V-bit, the line width grows with depth.</div>` : ''}
+        ${op.type !== 'face' && op.type !== 'rough3d' && op.type !== 'parallel' && op.type !== 'engrave' ? `<div class="field"><label>${op.type === 'drill' ? 'Holes' : 'Faces'}</label><button class="btn sm ${this.pick === op.id ? 'primary' : ''}" data-pick>${icon('pointer')}${this.pick === op.id ? 'Done' : `${op.faces.length} selected`}</button></div>` : ''}
         ${op.type === 'profile' ? `<div class="field"><label>Side</label><div class="seg" data-side>${[['outside', 'Outside'], ['inside', 'Inside'], ['on', 'On line']].map(([v, l]) => `<button data-v="${v}" class="${op.side === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
           <div class="field check"><label>Cut through the part</label><label class="switch"><input type="checkbox" data-through ${op.through ? 'checked' : ''}><span></span></label></div>
           ${op.through && op.side !== 'inside' ? `<div class="field"><label>Holding tabs</label><div class="num"><input type="number" step="1" min="0" max="24" data-num="tabs" value="${op.tabs ?? 0}"><span class="unit"></span></div></div>
@@ -312,6 +320,7 @@ export class CamWorkspace {
       el.querySelectorAll('[data-side] button').forEach((bt) => (bt.onclick = () => { op.side = bt.dataset.v; app.scheduleSave(); this.compute(); }));
       el.querySelector('[data-through]')?.addEventListener('change', (e) => { op.through = e.target.checked; app.scheduleSave(); this.compute(); });
       el.querySelectorAll('[data-top] button').forEach((bt) => (bt.onclick = () => { op.top = bt.dataset.v; app.scheduleSave(); this.compute(); }));
+      el.querySelector('[data-esk]')?.addEventListener('change', (e) => { op.sketch = e.target.value || null; app.scheduleSave(); this.compute(); });
       el.querySelectorAll('[data-bnd] button').forEach((bt) => (bt.onclick = () => { op.boundary = bt.dataset.v; app.scheduleSave(); this.compute(); }));
       el.querySelectorAll('[data-num]').forEach((inp) => (inp.onchange = () => { op[inp.dataset.num] = Math.max(inp.dataset.num === 'tolerance' ? 0.05 : 0, +inp.value || 0); app.scheduleSave(); this.compute(); }));
       el.querySelector('[data-back]').onclick = () => { this.sel = null; this.setPick(null); this.show(); app.renderRight(); };

@@ -29,6 +29,7 @@
 
     <h2 id="versions">Versions</h2>
     <p>Choose <b>Save version…</b> from the project menu, or use the <b>Versions</b> tab, to keep a named snapshot. You can restore any version later. To keep the current state as well, save a version of it before restoring.</p>
+    <p>The Versions tab also lists your <b>recent changes</b>, newest first, in plain words ("Added Fillet 2", "Changed parameter width to 80"). <b>Undo to here</b> goes back to just before a change; <kbd>Ctrl</kbd> <kbd>Y</kbd> steps forward again.</p>
 
     <h2 id="backup">Backups and moving computers</h2>
     <p><b>Download project file</b> in the project menu saves the whole design, with its history, parameters and appearances, as a <code>.ruffle3d</code> file. Open it on any computer with <b>Open file from disk…</b>, by dragging it onto the Ruffle3D window, or, in the desktop app, by double-clicking it. Dropping a STEP or STL file onto the window imports it into the open design. We recommend keeping these files in your usual backup or cloud folder.</p>
@@ -76,7 +77,7 @@
       <li><b>Datum</b>: a datum triangle and letter.</li>
       <li><b>Detail</b>: click the centre of a small area in a view, click again to size the circle, then click where the enlarged view goes. It's labelled with a letter and its scale (for example DETAIL C (4:1)). Drag it to move it; double-click it to change the letter, the enlargement or the circle size.</li>
     </ul>
-    <p>With <b>Select</b>, drag an annotation to move it, double-click it to edit (for dimensions: the text and a tolerance such as <code>±0.1</code> or <code>+0.05/-0</code>), and press <kbd>Delete</kbd> to remove it. Dimensions belong to their view and show the true model size at any scale. They are saved with the project and included in SVG and PDF output. They follow the model: when you change the part and open the drawing again, each dimension finds the edges, corners or hole it measured and shows the new value. If that geometry is gone, the dimension turns red so you can delete it and place it again.</p>
+    <p>With <b>Select</b>, drag an annotation to move it, double-click it to edit (for dimensions: the text and a tolerance such as <code>±0.1</code> or <code>+0.05/-0</code>), and press <kbd>Delete</kbd> to remove it. Dimensions belong to their view and show the true model size at any scale. They are saved with the project and included in SVG, PDF and DXF output. <b>DXF</b> in the drawing toolbar saves the whole sheet for laser cutters and other CAD programs, in millimetres, on the layers OUTLINE, HIDDEN, DIM and TEXT. They follow the model: when you change the part and open the drawing again, each dimension finds the edges, corners or hole it measured and shows the new value. If that geometry is gone, the dimension turns red so you can delete it and place it again.</p>
 
     <h2 id="compare">Comparing versions</h2>
     <p>In the <b>Versions</b> tab, choose <b>Compare</b> on a saved version to see what has changed since then. Material added since that version is shown in green and material removed in red, over a faint copy of the current model. The panel lists the volume change for each body and for the whole design. Comparing doesn't change anything; use <b>Restore</b> to go back to the version.</p>

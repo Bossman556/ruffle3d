@@ -90,6 +90,22 @@ check('X is measured from the stock left edge', Math.min(...allX) >= -3.01 - 1e-
   check('tabbed profile posts to G-code', /\bG1\b/.test(g));
 }
 
+// engraving: a line and a Ø20 circle sketched on the plate's top face (z = 10), 0.5 mm deep with a 90° V-bit
+{
+  const stE = emptyState();
+  stE.bodies.set('b', part);
+  stE.sketches.set('logo', { plane: { origin: [0, 0, 10], xDir: [1, 0, 0], normal: [0, 0, 1] }, geom: [{ type: 'line', a: [-20, 0], b: [20, 0] }, { type: 'circle', c: [0, 0], r: 10 }] });
+  const vb = TOOL_LIBRARY.find((t) => t.type === 'vbit' && t.angle === 90);
+  const E = camToolpaths(stE, { body: 'b', setup: { margin: 3, top: 1, safe: 10 }, tools, ops: [{ id: 'e', type: 'engrave', tool: vb.id, sketch: 'logo', depth: 0.5 }] }).ops[0];
+  const cutsE = E.moves.filter((m) => !m.r).map((m) => m.p);
+  const deep = cutsE.filter((p) => Math.abs(p[2] - 9.5) < 1e-9);
+  check('engraving cuts to 0.5 mm below the sketch plane', !E.error && deep.length > 50 && Math.min(...cutsE.map((p) => p[2])) >= 9.5 - 1e-9, `${E.error || ''} ${deep.length} points at z 9.5`);
+  check('it follows the sketch: the line and the circle', deep.every((p) => Math.abs(p[1]) < 1e-9 || Math.abs(Math.hypot(p[0], p[1]) - 10) < 1e-3) && deep.some((p) => Math.abs(p[0] + 20) < 1e-9) && deep.some((p) => Math.abs(p[1] - 10) < 0.01));
+  check('a V-bit reports the line width it cuts (1 mm at 0.5 mm deep for 90°)', E.warnings.some((w) => /1 mm wide/.test(w)), E.warnings.join(' | '));
+  const bad = camToolpaths(stE, { body: 'b', setup: { margin: 3, top: 1, safe: 10 }, tools, ops: [{ id: 'e', type: 'engrave', tool: vb.id, sketch: 'nope', depth: 0.5 }] }).ops[0];
+  check('engraving without a sketch explains why', /Choose the sketch/.test(bad.error || ''), bad.error);
+}
+
 // 3D machining of a dome: R30 sphere cap on a 60 × 60 × 10 block (top of the dome at z = 15)
 {
   const { makeSphere } = await import('replicad');

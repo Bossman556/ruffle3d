@@ -90,5 +90,17 @@ const stl = exportShapes([{ shape: final.bodies.get('b1') }, { shape: final.bodi
 check('STEP export', step.size > 1000, `${step.size} bytes`);
 check('STL export', stl.size > 1000, `${stl.size} bytes`);
 
+// moments of inertia: a 100 × 20 × 10 box turned 30° about Z. Principal moments are the box's own,
+// (V/12)(b² + c²), with the first principal axis along the turned length
+{
+  const { makeBaseBox } = await import('replicad');
+  const pr = properties(makeBaseBox(100, 20, 10).rotate(30, [0, 0, 0], [0, 0, 1]));
+  const V = 20000, P = pr.inertia.principal, want = [(V / 12) * (400 + 100), (V / 12) * (10000 + 100), (V / 12) * (10000 + 400)];
+  const rel = (a, b) => Math.abs(a - b) / b;
+  check('principal moments of inertia match the hand calculation', P.every((q, i) => rel(q.moment, want[i]) < 1e-6), P.map((q) => q.moment.toFixed(1)).join(', '));
+  check('the first principal axis lies along the turned box', Math.abs(Math.abs(P[0].axis[0]) - Math.cos(Math.PI / 6)) < 1e-6 && Math.abs(Math.abs(P[0].axis[1]) - 0.5) < 1e-6, JSON.stringify(P[0].axis));
+  check('the inertia tensor has the expected product of inertia', Math.abs(Math.abs(pr.inertia.tensor[0][1]) - ((want[1] - want[0]) * Math.sin(Math.PI / 3)) / 2) < 1e-3, pr.inertia.tensor[0][1].toFixed(2));
+}
+
 console.log(failures ? `\n${failures} FAILED` : '\nALL PASSED');
 process.exit(failures ? 1 : 0);

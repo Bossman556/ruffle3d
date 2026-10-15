@@ -85,7 +85,7 @@
     <p>Flanges can carry flanges: click the end edge or a side edge of a flange to fold a lip, a return or a side tab from it. The flat pattern unfolds every level. Each edge takes one flange.</p>
 
     <h2 id="configurations">Configurations</h2>
-    <p>Configurations are named variants of one design, for example S, M and L. Open <b>Insert ▸ Configurations</b>, or choose <b>Table</b> in the Parameters tab, to edit a table: one row for each parameter, one column for each variant. Leave a cell empty to use the Default value. Switch the active configuration from the Parameters tab, or click the chip in the viewport. <b>Export STEP for every configuration</b> writes one file per variant.</p>
+    <p>Configurations are named variants of one design, for example S, M and L. Open <b>Insert ▸ Configurations</b>, or choose <b>Table</b> in the Parameters tab, to edit a table: one row for each parameter, one column for each variant. Leave a cell empty to use the Default value. Switch the active configuration from the Parameters tab, or click the chip in the viewport. <b>Export CSV</b> and <b>Import CSV</b> move the table to and from a spreadsheet such as Excel: the first row is Parameter, Default and the configuration names. Importing updates the values, adds new configurations by name, and lists any parameters it didn't recognise. <b>Export STEP for every configuration</b> writes one file per variant.</p>
 
     <h2 id="timeline">The timeline</h2>
     <p>When you change a dimension or edit an earlier feature, later features find their faces and edges again from a fingerprint taken when you picked them (position, direction, size and shape), not just from where you clicked. If an edge or face has been split in two, fillets, chamfers, shells and drafts apply to all the pieces. If a reference really can't be found, the feature turns red and asks you to pick again.</p>
@@ -113,6 +113,7 @@
     <ul>
       <li><b>Measure</b> (<kbd>I</kbd>): lengths, radii and areas, plus the distance and angle between two picks.</li>
       <li><b>Section</b>: a live section plane through the model, with capped cuts.</li>
+      <li><b>Properties</b>: select a body for its mass, volume, area, centre of mass and <b>moments of inertia</b>: the principal moments and axes and the full inertia tensor about the centre of mass, in kg·mm², from the body's material.</li>
       <li><b>Bill of materials</b> (Inspect ▸ more): every body's material, volume, mass, area and size. You can copy it or download it as CSV.</li>
       <li><b>Wall thickness</b> (Inspect ▸ more): colours the model by how thick the material is under each point of the surface, measured straight into the part. Set a minimum wall: anything thinner turns red, and the panel shows the thinnest wall and how much of the surface is below the minimum. Use it for moulded and printed parts, and to find thick sections that could sink or warp.</li>
       <li><b>3D print check</b> (Inspect ▸ more): choose the build direction and the overhang limit. Faces that need support are red, borderline faces amber and the face on the build plate blue. The panel lists each body's size, whether it fits the build volume you pick, whether its mesh is watertight, its overhang area, and an estimate of the filament it needs.</li>

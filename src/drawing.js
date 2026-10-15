@@ -3,6 +3,8 @@
 import { icon } from './icons.js';
 import { MATERIALS, DEFAULT_MATERIAL } from './materials.js';
 import { parseSnaps, annotationsSVG, reanchor, ANNOTATION_CSS, GDT } from './annotate.js';
+import { svgToDXFEntities } from './svg2dxf.js';
+import { writeDXF } from './dxf.js';
 
 const SHEETS = { A4: [297, 210], A3: [420, 297], A2: [594, 420], Letter: [279.4, 215.9] };
 const SCALES = [10, 5, 4, 2, 1, 1 / 2, 1 / 2.5, 1 / 4, 1 / 5, 1 / 10, 1 / 20, 1 / 50, 1 / 100];
@@ -87,6 +89,7 @@ export class DrawingWorkspace {
         ${this.tool === 'dim' ? `<label>Type <select data-dm>${[['auto', 'Auto'], ['h', 'Horizontal'], ['v', 'Vertical'], ['a', 'Aligned']].map(([v, l]) => `<option value="${v}" ${this.dimMode === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>` : ''}
         <span class="spacer"></span>
         <button class="btn" data-a="svg">${icon('export')}SVG</button>
+        <button class="btn" data-a="dxf" data-tip="For laser cutters and other CAD programs: layers OUTLINE, HIDDEN, DIM and TEXT, in millimetres">${icon('export')}DXF</button>
         <button class="btn" data-a="print">${icon('file')}Print / PDF</button>
         <button class="btn primary" data-a="close">${icon('cube')}Back to model</button>
       </div>
@@ -118,6 +121,7 @@ export class DrawingWorkspace {
       this.app.download(new Blob([this.sheetSVG(true)], { type: 'image/svg+xml' }), `${this.app.doc.name}-drawing.svg`);
     };
     this.el.querySelector('[data-a=print]').onclick = () => this.print();
+    this.el.querySelector('[data-a=dxf]').onclick = () => this.exportDXF();
   }
 
   // ---------------------------------------------------------------- sheet layout
@@ -602,6 +606,21 @@ export class DrawingWorkspace {
       <div class="field"><label>Tolerance</label><input class="input" data-t value="${esc(it.tol || '')}" placeholder="±0.1 or +0.05/-0"></div>
       <div class="help">Leave the text empty to show the measured value. Common: ±0.1 general, +0.02/-0 for a press fit, H7 or g6 for fits.</div>`,
       { ic: 'measure', onOk: (el) => { this.app.snapshot(); it.text = el.querySelector('[data-x]').value.trim(); it.tol = el.querySelector('[data-t]').value.trim().replace(/^\+-/, '±'); done(); } });
+  }
+
+  // the sheet as DXF: render a clean copy off-screen so the browser resolves transforms and styles
+  exportDXF() {
+    const [, H] = SHEETS[this.opts.sheet];
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:-20000px;top:0;width:1200px;height:900px;visibility:hidden;pointer-events:none';
+    box.innerHTML = this.sheetSVG(true);
+    document.body.appendChild(box);
+    try {
+      const svg = box.querySelector('svg');
+      const ents = svgToDXFEntities(svg, H);
+      this.app.download(new Blob([writeDXF(ents, 4)], { type: 'application/dxf' }), `${this.app.doc.name}-drawing.dxf`);
+      this.app.toast(`Exported ${ents.length} entities to DXF`, 'ok');
+    } catch (e) { this.app.toast(`DXF export failed: ${e.message}`, 'warn'); } finally { box.remove(); }
   }
 
   print() {
