@@ -10,7 +10,7 @@ const { pathToFileURL } = require('node:url');
 const DIST = path.join(__dirname, '..', 'dist');
 const ORIGIN = 'app://ruffle3d';
 const ICON = path.join(__dirname, '..', 'build', 'icon.png');
-const DOCS = 'https://ruffle3d-website.vercel.app/docs/index.html';
+const DOCS = 'https://www.ruffle3d.site/docs/index.html';
 const REPO = 'https://github.com/Bossman556/ruffle3d';
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
@@ -147,7 +147,7 @@ function buildMenu() {
         { type: 'separator' },
         { label: 'Source Code and Contributing', click: () => shell.openExternal(REPO) },
         { label: 'Report a Problem…', click: () => shell.openExternal(`${REPO}/issues/new/choose`) },
-        { label: 'Donate to Ruffle3D…', click: () => shell.openExternal('https://ruffle3d-website.vercel.app/donate.html') },
+        { label: 'Donate to Ruffle3D…', click: () => shell.openExternal('https://www.ruffle3d.site/donate.html') },
         { type: 'separator' },
         { label: 'Check for Updates…', click: () => send('updates') },
         { label: 'Open Data Folder', click: () => shell.openPath(app.getPath('userData')) },

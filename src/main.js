@@ -34,7 +34,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const fmt = (x, d = 2) => (Number.isFinite(x) ? (+x.toFixed(d)).toLocaleString(undefined, { maximumFractionDigits: d }) : '–');
 const LEGACY_KEY = 'ruffle3d.autosave.v1';
 const LAST_KEY = 'ruffle3d.lastProject';
-const SITE = 'https://ruffle3d-website.vercel.app';
+const SITE = 'https://www.ruffle3d.site';
 // version strings like 0.10.2 compared part by part
 const newerVersion = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
 
