@@ -8,13 +8,6 @@
     "jurisdiction": "",
     "registration": ""
   },
-  "email": {
-    "contact": "hello@ruffle3d.example",
-    "support": "support@ruffle3d.example",
-    "privacy": "privacy@ruffle3d.example",
-    "security": "security@ruffle3d.example",
-    "legal": "legal@ruffle3d.example"
-  },
   "legalUpdated": "12 October 2026",
   "repo": "https://github.com/Bossman556/ruffle3d",
   "donate": {

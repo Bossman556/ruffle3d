@@ -9,9 +9,9 @@
 <section class="section-tight">
   <div class="container">
     <div class="contact-grid">
-      <div id="general"><h3>General</h3><p>Partnerships, schools and labs, press and anything else.</p><a href="mailto:{{email.contact}}">{{email.contact}}</a></div>
-      <div id="support"><h3>Support</h3><p>Help with Ruffle3D and bug reports, for everyone.</p><a href="mailto:{{email.support}}">{{email.support}}</a></div>
-      <div id="privacy"><h3>Privacy and legal</h3><p>Data protection requests and legal notices.</p><a href="mailto:{{email.privacy}}">{{email.privacy}}</a></div>
+      <div id="general"><h3>General</h3><p>Questions, ideas, partnerships, schools and labs, press and anything else.</p><a class="arrow-link" href="{{repo}}/discussions">GitHub Discussions</a></div>
+      <div id="support"><h3>Bugs and feature requests</h3><p>Something not working, or a feature you need, for everyone.</p><a class="arrow-link" href="{{repo}}/issues/new/choose">GitHub Issues</a></div>
+      <div id="security"><h3>Security problems</h3><p>Report privately, so the problem isn't public before it's fixed.</p><a class="arrow-link" href="{{repo}}/security/advisories/new">Private security report</a></div>
     </div>
     <div class="cols-2" style="margin-top:56px">
       <div>
@@ -21,7 +21,7 @@
             <tr><th>Company</th><td>{{company.legalName}}</td></tr>
             <tr><th>Address</th><td>{{company.address}}</td></tr>
             <tr><th>Registration</th><td>{{company.registration}}</td></tr>
-            <tr><th>Security reports</th><td><a href="mailto:{{email.security}}">{{email.security}}</a></td></tr>
+            <tr><th>Licence, privacy and legal</th><td><a href="{{repo}}/discussions">GitHub Discussions</a></td></tr>
           </tbody>
         </table>
       </div>
