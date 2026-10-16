@@ -30,12 +30,15 @@ import { faceSigFromMesh, edgeSigFromSegments } from './picksig.js';
 import { AssemblyTools } from './assembly.js';
 import { configsToCSV, parseCSV, applyConfigTable } from './configcsv.js';
 import { describeChange } from './history.js';
+import { runScript, EXAMPLES } from './scripting.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const fmt = (x, d = 2) => (Number.isFinite(x) ? (+x.toFixed(d)).toLocaleString(undefined, { maximumFractionDigits: d }) : '–');
 const LEGACY_KEY = 'ruffle3d.autosave.v1';
 const LAST_KEY = 'ruffle3d.lastProject';
+const FASTENER_NAMES = { shcs: 'socket head cap screw (ISO 4762)', hexbolt: 'hexagon head bolt (ISO 4017)', csk: 'countersunk screw (ISO 10642)', nut: 'hexagon nut (ISO 4032)', washer: 'plain washer (ISO 7089)' };
+const fastenerName = (p) => `${p.size || 'M6'}${['nut', 'washer'].includes(p.kind) ? '' : ` × ${+(+p.length || 20).toFixed(1)}`} ${FASTENER_NAMES[p.kind || 'shcs']}`;
 // four significant figures, without exponent notation for everyday sizes
 const sig4 = (v) => (Math.abs(v) >= 1e-3 && Math.abs(v) < 1e9 ? (+v.toPrecision(4)).toLocaleString(undefined, { maximumFractionDigits: 6 }) : v.toExponential(3));
 const SITE = 'https://www.ruffle3d.site';
@@ -101,6 +104,7 @@ const EXTRA = {
   exportdxf: { label: 'Export DXF', icon: 'dxfout', desc: 'Export a flat face or a sketch as DXF for laser cutting or CNC' },
   decal: { label: 'Decal', icon: 'decal', desc: 'Put a logo, label or graphic on a face for renders' },
   canvas: { label: 'Canvas', icon: 'canvas', desc: 'Reference image on a plane: photos, sketches or blueprints to model over' },
+  scripts: { label: 'Scripts', icon: 'code', desc: 'Automate modelling with JavaScript: build parts from parameters, run studies, batch-export' },
   configs: { label: 'Configurations', icon: 'configs', desc: 'Design variants: named sets of parameter values' },
   flatpattern: { label: 'Flat Pattern', icon: 'flatpattern', desc: 'Unfold a sheet metal part: bend table, size and DXF for cutting' },
   thickness: { label: 'Wall Thickness', icon: 'thickness', desc: 'Colour the model by wall thickness and find walls thinner than a minimum' },
@@ -125,10 +129,11 @@ const EXTRA = {
 };
 const DESC = {
   extrude: 'Push a sketch profile into a solid', revolve: 'Spin a profile around an axis', sweep: 'Move a profile along a path',
-  loft: 'Blend between two profiles', hole: 'Simple, counterbored or countersunk holes', presspull: 'Push or pull planar faces',
+  loft: 'Blend between two profiles', hole: 'ISO clearance, counterbore, countersink and tapped holes, or custom sizes', presspull: 'Push or pull planar faces',
   fillet: 'Round edges', chamfer: 'Bevel edges', shell: 'Hollow a body', combine: 'Join, cut or intersect bodies',
   draft: 'Taper faces for moulding', split: 'Split a body with a plane', move: 'Move, rotate or copy bodies', scale: 'Scale bodies',
   remove: 'Remove bodies', joint: 'Position parts with motion', mirror: 'Mirror bodies across a plane',
+  fastener: 'Standard ISO screws, bolts, nuts and washers, placed in holes',
   rpattern: 'Rectangular pattern of bodies', cpattern: 'Circular pattern of bodies', ppattern: 'Copies of bodies spaced along a sketch curve', box: 'Box primitive', cylinder: 'Cylinder primitive',
   sphere: 'Sphere primitive', torus: 'Torus primitive', cone: 'Cone primitive',
   surfextrude: 'Sweep curves straight into a surface', surfrevolve: 'Spin curves around an axis into a surface',
@@ -150,7 +155,7 @@ const DESIGN_GROUPS = [
   { name: 'Assemble', color: 'assemble', items: ['component', 'mate', 'joint', 'explode'], more: ['assembly', 'animate'] },
   { name: 'Construct', color: 'construct', items: ['plane:offset'], more: ['plane:angle', 'plane:mid'] },
   { name: 'Inspect', color: 'inspect', items: ['measure', 'section', 'interference', 'zebra'], more: ['draftan', 'isophote', 'curvmap', 'printcheck', 'thickness', '-', 'bom', 'props'] },
-  { name: 'Insert', color: 'insert', items: ['import', 'importdxf', 'canvas'], more: ['decal', 'exportdxf', '-', 'configs'] },
+  { name: 'Insert', color: 'insert', items: ['import', 'importdxf', 'canvas', 'fastener'], more: ['decal', 'exportdxf', '-', 'configs', 'scripts'] },
 ];
 const SURFACE_GROUPS = [
   { name: 'Curves', color: 'curve', items: ['sketch', 'cvcurve', 'editcv'], more: ['plane:offset', 'plane:angle'] },
@@ -716,6 +721,8 @@ class App {
   // what a body is as a part: identical components share a key (BOM and drawing quantities)
   partInfo(id) {
     const meta = this.bodyMeta(id);
+    const fast = this.doc.features.find((f) => f.type === 'fastener' && f.id === id);
+    if (fast) return { key: `fastener|${fastenerName(fast.p)}|${meta.material}`, name: fastenerName(fast.p) };
     const comp = id.includes('/') && this.doc.features.find((f) => f.type === 'component' && id.startsWith(`${f.id}/`));
     if (!comp || !comp.p.source) return { key: id, name: meta.name };
     const bid = id.slice(comp.id.length + 1);
@@ -727,6 +734,8 @@ class App {
       this.tempMeta ||= {};
       return (this.tempMeta[id] ||= { name: `Body${this.doc.counters.body + 1}`, material: DEFAULT_MATERIAL, visible: true });
     }
+    const fast = !m && this.doc.features.find((f) => f.type === 'fastener' && f.id === id);
+    if (fast) return (this.doc.bodies[id] = { material: 'steel', visible: true, name: fastenerName(fast.p) });
     const comp = !m && id.includes('/') && this.doc.features.find((f) => f.type === 'component' && id.startsWith(`${f.id}/`));
     if (comp) {
       // a body of a component: named and coloured as in its source project
@@ -1130,6 +1139,7 @@ class App {
     if (c === 'importdxf') return this.importDXF();
     if (c === 'exportdxf') return this.startDXFExport();
     if (c === 'configs') return this.openConfigTable();
+    if (c === 'scripts') return this.openScripts();
     if (c === 'canvas') return canvasList(this.doc).length ? this.canvases.open() : this.canvases.add();
     if (c === 'decal') return decalList(this.doc).length ? this.decals.open() : this.decals.add();
     if (c === 'cvcurve') return this.startCV();
@@ -2789,6 +2799,72 @@ class App {
     };
     const m = this.modal('Configurations', '', { wide: true, ic: 'configs', cancel: false, sub: esc(doc.name) });
     render();
+  }
+
+  // Scripts: a JavaScript editor with the r3d API, saved scripts in the project, and examples
+  openScripts() {
+    const doc = this.doc;
+    doc.scripts ||= [];
+    const cur = this._script || { name: doc.scripts[0]?.name || EXAMPLES[0].name, code: doc.scripts[0]?.code || EXAMPLES[0].code };
+    const m = this.modal('Scripts', `<div class="script-wrap">
+        <aside class="script-list"><h4>In this design</h4><div data-mine></div><h4>Examples</h4>${EXAMPLES.map((e, i) => `<button data-ex="${i}">${icon('file')}${esc(e.name)}</button>`).join('')}
+          <a class="script-doc" href="${SITE}/docs/scripting.html" target="_blank" rel="noopener">${icon('external')}API reference</a></aside>
+        <div class="script-main">
+          <div class="script-bar"><input class="input" data-name value="${esc(cur.name)}" spellcheck="false"><button class="btn sm" data-save>${icon('save')}Save in design</button><span class="spacer"></span><button class="btn sm primary" data-run>${icon('play')}Run<kbd>Ctrl Enter</kbd></button></div>
+          <textarea class="script-code" spellcheck="false" data-code></textarea>
+          <div class="script-out" data-out><span class="muted">Output appears here. Scripts can change anything in the app, so only run scripts you trust. A whole run is one undo step.</span></div>
+        </div></div>`, { wide: true, ic: 'code', cancel: false, sub: 'JavaScript · r3d API' });
+    m.querySelector('.mbox')?.classList.add('xwide');
+    const code = m.querySelector('[data-code]'), out = m.querySelector('[data-out]'), nameIn = m.querySelector('[data-name]');
+    code.value = cur.code;
+    const remember = () => { this._script = { name: nameIn.value, code: code.value }; };
+    const toTop = () => { code.scrollTop = 0; code.scrollLeft = 0; code.setSelectionRange(0, 0); };
+    requestAnimationFrame(toTop);
+    const mine = () => {
+      m.querySelector('[data-mine]').innerHTML = doc.scripts.length ? doc.scripts.map((sc, i) => `<div class="script-item"><button data-mine-i="${i}">${icon('code')}${esc(sc.name)}</button><button class="iconbtn" data-del-i="${i}" data-tip="Delete">${icon('trash')}</button></div>`).join('') : '<div class="muted small">None yet</div>';
+      m.querySelectorAll('[data-mine-i]').forEach((b) => (b.onclick = () => { const sc = doc.scripts[+b.dataset.mineI]; code.value = sc.code; nameIn.value = sc.name; remember(); toTop(); }));
+      m.querySelectorAll('[data-del-i]').forEach((b) => (b.onclick = () => { this.snapshot(); doc.scripts.splice(+b.dataset.delI, 1); this.scheduleSave(); mine(); }));
+    };
+    mine();
+    m.querySelectorAll('[data-ex]').forEach((b) => (b.onclick = () => { const e = EXAMPLES[+b.dataset.ex]; code.value = e.code; nameIn.value = e.name; remember(); toTop(); }));
+    code.addEventListener('input', remember);
+    nameIn.addEventListener('input', remember);
+    const log = (text, kind) => {
+      if (out.querySelector('.muted')) out.innerHTML = '';
+      const line = document.createElement('div');
+      line.className = `script-line ${kind || ''}`;
+      line.textContent = text;
+      out.appendChild(line);
+      out.scrollTop = out.scrollHeight;
+    };
+    const run = async () => {
+      const btn = m.querySelector('[data-run]');
+      if (btn.disabled) return;
+      btn.disabled = true;
+      out.innerHTML = '';
+      const t0 = performance.now();
+      this.snapshot();
+      const res = await runScript(this, code.value, log);
+      this.changed();
+      await this.rebuild();
+      this.vp.fitAll();
+      log(res.ok ? `Done in ${((performance.now() - t0) / 1000).toFixed(1)} s` : 'Stopped. Ctrl Z undoes the whole run.', res.ok ? 'ok' : 'warn');
+      btn.disabled = false;
+    };
+    code.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') { e.preventDefault(); code.setRangeText('  ', code.selectionStart, code.selectionEnd, 'end'); remember(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run(); }
+      e.stopPropagation(); // keep the app's keyboard shortcuts out of the editor
+    });
+    m.querySelector('[data-save]').onclick = () => {
+      const name = nameIn.value.trim() || 'Script';
+      this.snapshot();
+      const ex = doc.scripts.find((x) => x.name === name);
+      if (ex) ex.code = code.value; else doc.scripts.push({ name, code: code.value });
+      this.scheduleSave(); mine(); this.toast(`Saved "${name}" in this design`, 'ok');
+    };
+    m.querySelector('[data-run]').onclick = run;
+    setTimeout(() => code.focus(), 30);
   }
 
   async exportAllConfigs() {

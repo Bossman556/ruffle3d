@@ -1,7 +1,7 @@
 // Icon system: Lucide for generic UI icons, plus a custom CAD set drawn on the same 24px grid
 // (1.6px strokes, rounded joins, a translucent accent fill for the "result" part of each operation).
 import {
-  Undo2, Redo2, Save, FolderOpen, File, FileText, Download, Upload, Eye, EyeOff, Trash2, X, Check, Folder,
+  Code, Undo2, Redo2, Save, FolderOpen, File, FileText, Download, Upload, Eye, EyeOff, Trash2, X, Check, Folder,
   House, Maximize, Square, Search, Settings2, Sun, Moon, Plus, ChevronDown, ChevronRight, History, Layers,
   SlidersHorizontal, Camera, Image, Grid3x3, Magnet, Play, Pause, SkipBack, SkipForward, StepBack, StepForward,
   Copy, Lock, LockOpen, Info, TriangleAlert, CircleAlert, Ellipsis, PanelLeft, PanelRight, Command, Box, Boxes,
@@ -20,7 +20,7 @@ const L = {
   upload: Upload, eye: Eye, eyeOff: EyeOff, trash: Trash2, close: X, check: Check, folder: Folder, home: House, fit: Maximize,
   ortho: Square, search: Search, settings: Settings2, sun: Sun, moon: Moon, plus: Plus, caret: ChevronDown, chevronRight: ChevronRight,
   history: History, layers: Layers, sliders: SlidersHorizontal, camera: Camera, image: Image, grid: Grid3x3, magnet: Magnet,
-  play: Play, pause: Pause, toStart: SkipBack, toEnd: SkipForward, stepBack: StepBack, stepFwd: StepForward, copy: Copy,
+  code: Code, play: Play, pause: Pause, toStart: SkipBack, toEnd: SkipForward, stepBack: StepBack, stepFwd: StepForward, copy: Copy,
   lock: Lock, unlock: LockOpen, info: Info, warn: TriangleAlert, error: CircleAlert, more: Ellipsis, panelLeft: PanelLeft,
   panelRight: PanelRight, command: Command, cube: Box, boxes: Boxes, measure: Ruler, keyboard: Keyboard, cloud: Cloud,
   saved: CloudCheck, spinner: LoaderCircle, clock: Clock, pencil: Pencil, pointer: MousePointer2, appearance: Palette,
@@ -83,6 +83,7 @@ const CAD = {
   component: s(`<path d="M3 8l6-3 6 3v7l-6 3-6-3z" ${A}/><path d="M13 11l4-2 4 2v6l-4 2-4-2"/><path d="M3 8l6 3 6-3M9 11v7"/>`),
   mate: s(`<rect x="3" y="13" width="18" height="7" rx="1.2" ${A}/><rect x="6" y="4" width="12" height="6" rx="1.2"/><path d="M12 10v3M9.5 11.5L12 13l2.5-1.5"/>`),
   ppattern: s(`<path d="M3 18c4-9 8 2 12-6 2-4 4-5 6-5" stroke-dasharray="2 2"/><rect x="2" y="15.5" width="4" height="4" rx=".8" ${A}/><rect x="9" y="11" width="4" height="4" rx=".8"/><rect x="16.5" y="5" width="4" height="4" rx=".8"/>`),
+  fastener: s(`<path d="M7 3h10l2 3H5z" ${A}/><path d="M9 6v13l3 2 3-2V6M9 10l6-2M9 14l6-2M9 18l6-2"/>`),
   joint: s(`<circle cx="8" cy="12" r="4.2" ${A}/><circle cx="16" cy="12" r="4.2"/><path d="M12 5.5v13" stroke-dasharray="2 2"/>`),
   interference: s(`<rect x="3" y="7" width="11" height="11" rx="1.5"/><rect x="10" y="3" width="11" height="11" rx="1.5"/><rect x="10" y="7" width="4" height="7" fill="var(--danger)" fill-opacity=".75" stroke="none"/>`),
   drawing: s(`<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 16h18M14 16v4"/><rect x="6" y="7" width="5" height="5" rx=".8" ${A}/><path d="M13.5 7h4.5v5h-4.5z"/>`),

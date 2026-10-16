@@ -14,6 +14,7 @@ import { solveSketch } from '../sketch/solver.js';
 import { computeRegions, selectRegions, pieceAt, reversePiece } from '../sketch/regions.js';
 import { writeDXF } from '../dxf.js';
 import { textSolid, fontLoaded } from './text.js';
+import { standardHole, ISO4762, HEX, WASHER, NOMINAL, ISO10642_DK } from './standards.js';
 export { writeDXF };
 
 const AXES = { X: [1, 0, 0], Y: [0, 1, 0], Z: [0, 0, 1] };
@@ -1641,6 +1642,8 @@ const BUILDERS = {
   hole(f, st) {
     const { p } = f;
     if (!p.points?.length) throw new Error('Select hole positions on a face');
+    // hole wizard: a standard type and screw size fill in every dimension
+    if (p.standard && p.standard !== 'custom') Object.assign(p, standardHole(p.standard, p.size || 'M6', p.fit || 'normal'));
     const tapped = !!p.tapped && ISO_PITCH[p.tapSize];
     if (tapped) p.diameter = tapDrill(p.tapSize); // the drill size follows the thread
     if (p.diameter <= 0) throw new Error('Diameter must be positive');
@@ -1888,6 +1891,51 @@ const BUILDERS = {
   },
 
   // ---------- threads & springs ----------
+  // standard fasteners (cosmetic threads): socket head cap screw, hex bolt, countersunk screw, hex nut, washer.
+  // Picked on a hole's wall they sit on the hole's axis at the end nearest the click; on a flat face, at the point.
+  fastener(f, st) {
+    const { p } = f;
+    if (!p.face?.length) throw new Error('Click the wall of a hole, or a flat face, to place the fastener');
+    const size = p.size || 'M6', d = NOMINAL[size];
+    if (!d) throw new Error(`Unknown size ${size}`);
+    const { face, q } = pickedFace(st, p.face[0]);
+    let seat, out;
+    if (face.geomType === 'CYLINDRE') {
+      const cyl = cylinderOf(face);
+      const e0 = add(cyl.center, mul(cyl.axis, cyl.v0)), e1 = add(cyl.center, mul(cyl.axis, cyl.v1));
+      const near1 = len(sub(q, e1)) <= len(sub(q, e0));
+      seat = near1 ? e1 : e0;
+      out = near1 ? cyl.axis : neg(cyl.axis);
+    } else if (face.geomType === 'PLANE') { seat = q; out = unit(p.face[0].n); }
+    else throw new Error('Place fasteners on the round wall of a hole or on a flat face');
+    if (p.flip) out = neg(out);
+    const L = Math.max(1, p.length || 20), kind = p.kind || 'shcs';
+    const XY = (z) => new Plane([0, 0, z], [1, 0, 0], [0, 0, 1]);
+    const hexPrism = (s, h, z0) => polyDrawing([0, 1, 2, 3, 4, 5].map((i) => [(s / Math.sqrt(3)) * Math.cos((i * Math.PI) / 3), (s / Math.sqrt(3)) * Math.sin((i * Math.PI) / 3)])).sketchOnPlane(XY(z0)).extrude(h);
+    const cyl = (r, h, z0) => makeCylinder(r, h, [0, 0, z0], [0, 0, 1]);
+    // built with +Z pointing out of the hole (the head side); the shank goes down into the part
+    let shape;
+    if (kind === 'shcs') {
+      const H = ISO4762[size];
+      shape = cyl(d / 2, L, -L).fuse(cyl(H.dk / 2, H.k, 0)).cut(hexPrism(H.s, H.k * 0.6 + 0.01, H.k * 0.4));
+    } else if (kind === 'hexbolt') {
+      const H = HEX[size];
+      shape = cyl(d / 2, L, -L).fuse(hexPrism(H.s, H.k, 0));
+    } else if (kind === 'csk') {
+      // countersunk head: a 90° cone from the head diameter down to the shank, flush with the surface; L is the overall length
+      const dk = ISO10642_DK[size], hk = (dk - d) / 2;
+      const head = polyDrawing([[0, 0], [dk / 2, 0], [d / 2, -hk], [0, -hk]]).sketchOnPlane(new Plane([0, 0, 0], [1, 0, 0], [0, -1, 0])).revolve([0, 0, 1], { origin: [0, 0, 0] });
+      shape = head.fuse(cyl(d / 2, Math.max(0.5, L - hk), -L)).cut(hexPrism(ISO4762[size].s, hk * 0.7 + 0.01, -hk * 0.7));
+    } else if (kind === 'nut') {
+      const H = HEX[size];
+      shape = hexPrism(H.s, H.m, 0).cut(cyl(d / 2, H.m + 2, -1));
+    } else if (kind === 'washer') {
+      const [di, dout, t] = WASHER[size];
+      shape = cyl(dout / 2, t, 0).cut(cyl(di / 2, t + 2, -1));
+    } else throw new Error(`Unknown fastener ${kind}`);
+    st.bodies.set(f.id, alignShape(shape, [0, 0, 1], out, [0, 0, 0]).translate(seat));
+  },
+
   thread(f, st) {
     const { p } = f;
     if (!p.face?.length) throw new Error('Select a cylindrical face');

@@ -673,3 +673,27 @@ svg.dw-sheet.placing { cursor: crosshair; }
 .hist-row > span { flex: 1; min-width: 0; }
 .hist-row .btn { flex: none; opacity: .55; }
 .hist-row:hover .btn { opacity: 1; }
+
+/* scripts */
+.mbox.xwide { width: min(1100px, 94vw); max-width: none; }
+.script-wrap { display: grid; grid-template-columns: 210px 1fr; gap: 14px; min-height: 520px; }
+.script-list { display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--line); padding-right: 12px; }
+.script-list h4 { margin: 8px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text3); }
+.script-list button { display: flex; align-items: center; gap: 8px; text-align: left; padding: 6px 8px; border: 0; border-radius: 6px; background: none; color: var(--text); font-size: 12.5px; cursor: pointer; }
+.script-list button:hover { background: var(--bg3); }
+.script-list button svg { width: 14px; height: 14px; flex: none; color: var(--text3); }
+.script-item { display: flex; align-items: center; }
+.script-item > button:first-child { flex: 1; min-width: 0; }
+.script-doc { margin-top: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--accent); text-decoration: none; padding: 8px; }
+.script-doc svg { width: 13px; height: 13px; }
+.script-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.script-bar { display: flex; align-items: center; gap: 8px; }
+.script-bar .input { width: 240px; height: 30px; }
+.script-bar .spacer { flex: 1; }
+.script-bar kbd { margin-left: 6px; opacity: .7; font-size: 10.5px; }
+.script-code { flex: 1; min-height: 330px; resize: vertical; padding: 12px; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg1, #0f1216); color: var(--text); font: 13px/1.55 ui-monospace, 'Cascadia Code', Consolas, monospace; tab-size: 2; white-space: pre; overflow: auto; }
+.script-out { height: 140px; overflow: auto; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg2); font: 12.5px/1.5 ui-monospace, Consolas, monospace; }
+.script-line { white-space: pre-wrap; word-break: break-word; }
+.script-line.err { color: var(--danger); }
+.script-line.warn { color: var(--warn); }
+.script-line.ok { color: var(--ok); }

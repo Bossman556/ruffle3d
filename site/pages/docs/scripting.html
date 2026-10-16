@@ -1,0 +1,95 @@
+<!-- {"title": "Scripting — Ruffle3D documentation", "description": "Automate Ruffle3D with JavaScript: the r3d API for parameters, sketches, features, rebuilds, mass properties, configurations and export.", "section": "docs"} -->
+<div class="container doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+    <h4>Documentation</h4>
+    <a href="index.html">Getting started</a>
+    <a href="modelling.html">Sketching and modelling</a>
+    <a href="surfacing.html">Surfacing</a>
+    <a href="simulation.html">Simulation</a>
+    <a href="manufacture.html">Manufacture (CNC)</a>
+    <a href="scripting.html" aria-current="page">Scripting</a>
+    <a href="files.html">Projects, import and export</a>
+    <a href="shortcuts.html">Keyboard shortcuts</a>
+    <h4>On this page</h4>
+    <a href="#start">Running a script</a>
+    <a href="#example">A first script</a>
+    <a href="#api">The r3d API</a>
+    <a href="#sketch">Sketch builder</a>
+    <a href="#features">Feature types</a>
+    <a href="#tips">Tips</a>
+  </nav>
+  <article class="prose">
+    <h1>Scripting</h1>
+    <p>Scripts build and change designs with JavaScript. Use them to make a part from a few numbers, generate a family of sizes, run a study over a parameter, or export many variants at once.</p>
+
+    <h2 id="start">Running a script</h2>
+    <p>Open <b>Insert ▸ more ▸ Scripts</b> (or search for "Scripts" with <kbd>Ctrl</kbd> <kbd>K</kbd>). Write or pick a script and press <b>Run</b> (<kbd>Ctrl</kbd> <kbd>Enter</kbd>). Output from <code>r3d.log</code> appears under the editor, with the line number of any error. <b>Save in design</b> keeps the script with the project.</p>
+    <p>A whole run is one undo step: <kbd>Ctrl</kbd> <kbd>Z</kbd> takes back everything it did.</p>
+    <div class="note"><strong>Only run scripts you trust.</strong> A script runs inside Ruffle3D with the same access as the app itself, so it can change or delete anything in your projects. Read a script you got from someone else before running it.</div>
+
+    <h2 id="example">A first script</h2>
+<pre><code>// a 120 × 80 plate, 8 mm thick, with eight counterbored M5 holes
+r3d.param('t', 8);
+const s = r3d.sketch('XY', (sk) =&gt; sk.centerRect(0, 0, 120, 80));
+const plate = r3d.extrude(s, 't');           // returns the new body's id
+await r3d.rebuild();
+
+const pts = [];
+for (const x of [-45, -15, 15, 45]) for (const y of [-25, 25]) pts.push([x, y, 8]);
+r3d.hole(plate, pts, [0, 0, 1], { standard: 'cbore', size: 'M5', through: true });
+await r3d.rebuild();
+
+r3d.log('Mass:', (await r3d.properties(plate)).mass.toFixed(1), 'g');</code></pre>
+    <p>Scripts are <code>async</code>: use <code>await</code> before <code>r3d.rebuild()</code>, <code>r3d.properties()</code> and <code>r3d.export()</code>. The model also rebuilds by itself when the script ends.</p>
+
+    <h2 id="api">The r3d API</h2>
+    <table class="data">
+      <thead><tr><th>Call</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>r3d.param(name)</code><br><code>r3d.param(name, value)</code></td><td>Reads a parameter, or creates or changes it. Values can be numbers or expressions such as <code>'width / 2'</code>.</td></tr>
+        <tr><td><code>r3d.sketch(plane, build, name?)</code></td><td>Adds a sketch on <code>'XY'</code>, <code>'XZ'</code> or <code>'YZ'</code>, or on a plane <code>{ origin, xDir, normal }</code>. <code>build</code> receives a <a href="#sketch">sketch builder</a>. Returns the sketch id.</td></tr>
+        <tr><td><code>r3d.extrude(sketch, distance, options?, name?)</code></td><td>Extrudes every closed region of a sketch. Options are the Extrude fields, for example <code>{ side: 'symmetric', op: 'cut', target: bodyId }</code>. Returns the feature id, which is also the new body's id.</td></tr>
+        <tr><td><code>r3d.revolve(sketch, options?, name?)</code></td><td>Revolves a sketch, for example <code>{ axis: 'sy', angle: 360 }</code>.</td></tr>
+        <tr><td><code>r3d.box(params)</code>, <code>r3d.cylinder(params)</code></td><td>Primitives: <code>{ w, d, h, x, y, z }</code> and <code>{ r, h, axis, x, y, z }</code>. Returns the body id.</td></tr>
+        <tr><td><code>r3d.hole(body, points, normal, options?)</code></td><td>Holes at points <code>[[x, y, z], …]</code> on a face with the given normal. Options: <code>{ standard: 'clearance' | 'cbore' | 'csink' | 'tapped', size: 'M6', fit: 'normal', through: true }</code>, or <code>{ diameter, depth }</code> for custom holes.</td></tr>
+        <tr><td><code>r3d.feature(type, params, name?)</code></td><td>Any timeline feature by its type and fields (the same names as in its dialog). See <a href="#features">feature types</a>.</td></tr>
+        <tr><td><code>await r3d.rebuild()</code></td><td>Rebuilds now. Returns <code>{ bodies, errors }</code>, with errors by feature name.</td></tr>
+        <tr><td><code>r3d.bodies()</code></td><td>The bodies: <code>[{ id, name, material }]</code>.</td></tr>
+        <tr><td><code>await r3d.properties(id)</code></td><td>Mass properties: <code>{ volume, area, mass, centerOfMass, bbox }</code> in mm, mm², mm³ and grams.</td></tr>
+        <tr><td><code>r3d.material(id, key)</code></td><td>Sets a body's material, for example <code>'steel'</code>, <code>'aluminum'</code>, <code>'abs'</code>, <code>'pla'</code>, <code>'brass'</code> or <code>'oak'</code>.</td></tr>
+        <tr><td><code>r3d.configure(name)</code></td><td>Switches to a configuration by name, or <code>null</code> for Default.</td></tr>
+        <tr><td><code>await r3d.export(format, ids?)</code></td><td>Downloads bodies as <code>'step'</code>, <code>'stl'</code> or <code>'3mf'</code> (all visible bodies if no ids are given).</td></tr>
+        <tr><td><code>r3d.log(…)</code>, <code>console.log(…)</code></td><td>Writes to the output panel. Objects are shown as JSON.</td></tr>
+        <tr><td><code>r3d.units</code></td><td>The design's units, such as <code>'mm'</code>.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="sketch">Sketch builder</h2>
+    <p>Inside <code>r3d.sketch</code>, the builder draws in sketch coordinates. Calls can be chained, and points shared by curves are joined automatically.</p>
+    <table class="data">
+      <tbody>
+        <tr><td><code>line(x1, y1, x2, y2)</code></td><td>A line.</td></tr>
+        <tr><td><code>polyline([[x, y], …], closed?)</code></td><td>Connected lines.</td></tr>
+        <tr><td><code>rect(x1, y1, x2, y2)</code>, <code>centerRect(cx, cy, w, h)</code></td><td>Rectangles.</td></tr>
+        <tr><td><code>circle(cx, cy, r)</code></td><td>A circle.</td></tr>
+        <tr><td><code>arc(cx, cy, r, a0, a1)</code></td><td>An arc, counter-clockwise from angle <code>a0</code> to <code>a1</code> in degrees.</td></tr>
+        <tr><td><code>polygon(cx, cy, r, n, rotation?)</code></td><td>A regular polygon with <code>n</code> sides on a circle of radius <code>r</code>.</td></tr>
+        <tr><td><code>slot(x1, y1, x2, y2, width)</code></td><td>A slot between two centres.</td></tr>
+        <tr><td><code>spline([[x, y], …], closed?)</code></td><td>A smooth curve through points.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="features">Feature types</h2>
+    <p><code>r3d.feature</code> accepts every feature in the app. The most used are <code>extrude</code>, <code>revolve</code>, <code>sweep</code>, <code>loft</code>, <code>hole</code>, <code>fillet</code>, <code>chamfer</code>, <code>shell</code>, <code>combine</code>, <code>rpattern</code>, <code>cpattern</code>, <code>ppattern</code>, <code>mirror</code>, <code>move</code>, <code>thread</code>, <code>fastener</code>, <code>plane</code>, <code>sheetbase</code> and <code>flange</code>. Their fields have the same names as in the feature dialogs. For example, a rectangular pattern:</p>
+<pre><code>r3d.feature('rpattern', { bodies: [boss], dir1: 'X', count1: 4, spacing1: 25, dir2: 'Y', count2: 2, spacing2: 40 });</code></pre>
+    <p>Features that pick faces or edges take references like the ones the app stores, for example <code>{ body, p: [x, y, z], n: [nx, ny, nz] }</code> for a face: a point on it and its outward normal.</p>
+
+    <h2 id="tips">Tips</h2>
+    <ul>
+      <li>Drive dimensions from parameters (<code>r3d.param</code>) and pass the parameter's name instead of a number. The design then stays editable by hand after the script has run.</li>
+      <li>Use the ids that features return instead of <code>r3d.bodies()[0]</code>, so a script works in a design that already has other bodies.</li>
+      <li>To test a range of values, change a parameter, <code>await r3d.rebuild()</code>, then read <code>r3d.properties</code>, as in the "Mass for a range of sizes" example.</li>
+      <li>Scripts are plain JavaScript, so loops, functions, <code>Math</code> and arrays all work.</li>
+    </ul>
+  </article>
+</div>

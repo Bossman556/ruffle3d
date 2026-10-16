@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Inter'; src: url('../site/assets/fonts/inter.woff2') format('woff2'); font-weight: 100 900; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1280px; height: 720px; overflow: hidden; }
+  body { position: relative; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; background: radial-gradient(900px 600px at 78% 45%, #26303f 0%, #141820 55%, #0b0d11 100%); color: #fff; }
+  /* orange glow behind the screenshots */
+  .glow { position: absolute; left: 520px; top: 60px; width: 820px; height: 640px; background: radial-gradient(closest-side, rgba(242, 113, 28, .42), rgba(242, 113, 28, 0)); filter: blur(8px); }
+  .card { position: absolute; border-radius: 18px; overflow: hidden; box-shadow: 0 30px 70px rgba(0, 0, 0, .65), 0 0 0 2px rgba(255, 255, 255, .08); background: #111; }
+  .card img { display: block; }
+  /* stress result, cropped to the model, behind */
+  .sim { left: 760px; top: 44px; width: 470px; height: 240px; transform: rotate(5deg); }
+  .sim img { width: 1300px; margin-left: -405px; margin-top: -315px; }
+  /* the modelling screen, in front */
+  .main { left: 530px; top: 250px; width: 690px; height: 431px; transform: rotate(-4deg); }
+  .main img { width: 690px; }
+  .tag { position: absolute; padding: 8px 16px; border-radius: 999px; font-weight: 800; font-size: 22px; letter-spacing: .02em; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+  .tag.sim-tag { left: 1040px; top: 236px; background: #1d2633; border: 2px solid #4f8cff; color: #cfe0ff; transform: rotate(5deg); }
+  .left { position: absolute; left: 60px; top: 70px; width: 560px; }
+  .brand { display: flex; align-items: center; gap: 16px; font-size: 40px; font-weight: 800; letter-spacing: -.01em; }
+  .brand svg { width: 64px; height: 64px; filter: drop-shadow(0 6px 18px rgba(242, 113, 28, .55)); }
+  .brand span { opacity: .6; font-weight: 500; }
+  .big { margin-top: 26px; font-weight: 900; line-height: .9; letter-spacing: -.035em; }
+  .big .free { display: block; font-size: 200px; color: #ff8b2b; text-shadow: 0 6px 0 #a3420b, 0 14px 34px rgba(0, 0, 0, .55); }
+  .big .cad { display: block; font-size: 116px; color: #fff; text-shadow: 0 5px 0 rgba(0, 0, 0, .35), 0 12px 30px rgba(0, 0, 0, .5); }
+  .sub { margin-top: 30px; display: inline-flex; align-items: center; gap: 12px; padding: 14px 22px; border-radius: 14px; background: #fff; color: #14181f; font-size: 30px; font-weight: 800; letter-spacing: -.01em; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); }
+  .sub i { width: 10px; height: 10px; border-radius: 50%; background: #f2711c; }
+</style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="card sim"><img src="../site/assets/img/screens/simulation.jpg" alt=""></div>
+  <div class="card main"><img src="../site/assets/img/screens/design-solid.jpg" alt=""></div>
+  <div class="tag sim-tag">+ SIMULATION</div>
+  <div class="left">
+    <div class="brand">
+      <svg viewBox="0 0 24 24"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb35c"/><stop offset="1" stop-color="#f2711c"/></linearGradient></defs><path d="M12 2.2l8.6 4.9v9.8L12 21.8l-8.6-4.9V7.1z" fill="url(#g)"/><path d="M3.6 7.2L12 12l8.4-4.8M12 12v9.6" stroke="#fff" stroke-opacity=".9" stroke-width="1.4" fill="none"/></svg>
+      <div>Ruffle<span>3D</span></div>
+    </div>
+    <div class="big"><span class="free">FREE</span><span class="cad">3D CAD</span></div>
+    <div class="sub"><i></i>Open source · No subscription</div>
+  </div>
+</body>
+</html>
