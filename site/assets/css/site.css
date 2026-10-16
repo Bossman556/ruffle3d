@@ -92,6 +92,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 48px 0; }
 .hero { padding: 72px 0 0; }
 .hero h1 { max-width: 760px; }
 .hero .lead { margin-bottom: 28px; }
+.hero .lead:has(+ .lead) { margin-bottom: 12px; }
 .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .hero-meta { margin-top: 16px; font-size: 14px; color: var(--ink-3); }
 .hero-shot { margin-top: 56px; }
@@ -242,9 +243,12 @@ code.hash { word-break: break-all; font-size: 12px; }
   .footer-grid { grid-template-columns: 1fr 1fr 1fr; }
   .footer-brand { grid-column: 1 / -1; }
 }
-@media (max-width: 820px) {
+/* the full header needs about 960px; below that it collapses into the menu button */
+@media (max-width: 960px) {
   .primary-nav, .header-actions { display: none; }
   .nav-toggle { display: flex; }
+}
+@media (max-width: 820px) {
   .cols-3, .cols-2, .contact-grid { grid-template-columns: 1fr; }
   .contact-grid > div { border-left: 0; border-top: 1px solid var(--line); }
   .contact-grid > div:first-child { border-top: 0; }
