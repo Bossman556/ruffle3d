@@ -86,7 +86,7 @@ function sampleBSpline(ctrl, knots, deg, weights, n) {
 
 /**
  * Flattens DXF entities into simple 2D primitives (millimetres after `scale`):
- *   { t: 'line', a, b } | { t: 'circle', c, r } | { t: 'arc', c, r, a0, a1 } | { t: 'spline', pts, closed }
+ *   { t: 'line', a, b } | { t: 'circle', c, r } | { t: 'arc', c, r, a0, a1 } | { t: 'spline', pts, closed } | { t: 'ellipse', c, a, rb }
  */
 export function dxfPrimitives(dxf, scale = 1) {
   const prims = [], skipped = {};
@@ -148,6 +148,8 @@ export function dxfPrimitives(dxf, scale = 1) {
           if (s1 <= s0) s1 += 2 * Math.PI;
           const full = Math.abs(s1 - s0 - 2 * Math.PI) < 1e-6;
           const a = Math.hypot(mj[0], mj[1]), ang = Math.atan2(mj[1], mj[0]);
+          // a whole ellipse stays an exact sketch ellipse (under uniform scaling)
+          if (full && uniform) { prims.push({ t: 'ellipse', c: P(c[0], c[1]), a: P(c[0] + mj[0], c[1] + mj[1]), rb: R(a * ratio) }); break; }
           const n = full ? 48 : Math.max(8, Math.ceil(((s1 - s0) / (2 * Math.PI)) * 48));
           const pts = [];
           for (let k = 0; k <= (full ? n - 1 : n); k++) {
@@ -199,7 +201,7 @@ export function primitivesToSketch(prims, { center = false, tol = 1e-6 } = {}) {
   if (center && prims.length) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     const ext = (p, r = 0) => { x0 = Math.min(x0, p[0] - r); y0 = Math.min(y0, p[1] - r); x1 = Math.max(x1, p[0] + r); y1 = Math.max(y1, p[1] + r); };
-    for (const p of prims) { if (p.t === 'line') { ext(p.a); ext(p.b); } else if (p.t === 'spline') p.pts.forEach((q) => ext(q)); else ext(p.c, p.r); }
+    for (const p of prims) { if (p.t === 'line') { ext(p.a); ext(p.b); } else if (p.t === 'spline') p.pts.forEach((q) => ext(q)); else if (p.t === 'ellipse') ext(p.c, Math.hypot(p.a[0] - p.c[0], p.a[1] - p.c[1])); else ext(p.c, p.r); }
     ox = (x0 + x1) / 2; oy = (y0 + y1) / 2;
   }
   const points = [], curves = [], index = new Map();
@@ -215,6 +217,7 @@ export function primitivesToSketch(prims, { center = false, tol = 1e-6 } = {}) {
   for (const p of prims) {
     if (p.t === 'line') { const a = pt(p.a), b = pt(p.b); if (a !== b) curves.push({ id: id('dc'), type: 'line', a, b }); }
     else if (p.t === 'circle') curves.push({ id: id('dc'), type: 'circle', c: pt(p.c), r: +p.r.toFixed(6) });
+    else if (p.t === 'ellipse') curves.push({ id: id('dc'), type: 'ellipse', c: pt(p.c), a: pt(p.a), rb: +p.rb.toFixed(6) });
     else if (p.t === 'arc') {
       const on = (a) => [p.c[0] + p.r * Math.cos(a), p.c[1] + p.r * Math.sin(a)];
       curves.push({ id: id('dc'), type: 'arc', c: pt(p.c), a: pt(on(p.a0)), b: pt(on(p.a1)) });

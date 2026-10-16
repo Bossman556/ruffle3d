@@ -24,6 +24,12 @@ export function sketchBuilder() {
     rect(x1, y1, x2, y2) { return b.polyline([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], true); },
     centerRect(cx, cy, w, h) { return b.rect(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2); },
     circle(cx, cy, r) { curves.push({ id: uid('c'), type: 'circle', c: pt(cx, cy), r }); return b; },
+    // radii along and across the major axis, which is turned rot degrees from X
+    ellipse(cx, cy, rx, ry, rot = 0) {
+      const a = (rot * Math.PI) / 180;
+      curves.push({ id: uid('c'), type: 'ellipse', c: pt(cx, cy), a: pt(cx + rx * Math.cos(a), cy + rx * Math.sin(a)), rb: ry });
+      return b;
+    },
     // counter-clockwise from angle a0 to a1 (degrees)
     arc(cx, cy, r, a0, a1) {
       const P = (a) => [cx + r * Math.cos((a * Math.PI) / 180), cy + r * Math.sin((a * Math.PI) / 180)];

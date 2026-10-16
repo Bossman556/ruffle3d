@@ -36,6 +36,8 @@
             <li>Extrude (one side, symmetric, two sides, with twist), revolve, sweep and loft</li>
             <li>Hole wizard: ISO clearance, counterbore, countersink and tapped holes from M2 to M24, sized automatically (tapped holes get the tap drill and a modelled thread)</li>
             <li>Fastener library: ISO socket head cap screws, hex bolts, countersunk screws, nuts and washers that snap into holes</li>
+            <li>Ribs from an open sketch line, filled out to the walls of the part</li>
+            <li>Wrap and emboss: lay a logo or label onto a cylinder or flat face and raise it or cut it in</li>
             <li>Scripting: build and change designs with JavaScript (parameters, sketches, features, mass properties, export)</li>
             <li>Raised or engraved text with a built-in single-stroke engraving font, or your own TTF and OTF fonts</li>
             <li>Canvas reference images on any origin plane, calibrated to size</li>
@@ -65,9 +67,9 @@
       <p>Sketches are fully parametric. A geometric constraint solver keeps every relationship as you drag geometry. The panel shows how many degrees of freedom are left, and colour shows which curves are free, fully defined or over-constrained.</p>
       <img class="screenshot" src="assets/img/screens/sketch.jpg" width="2000" height="1250" alt="Sketch mode with constraints and dimensions" loading="lazy" />
       <ul>
-        <li>Line, two-point and centre rectangle, circle, three-point and centre arc, polygon, slot, spline and point</li>
+        <li>Line, two-point and centre rectangle, circle, three-point and centre arc, ellipse, polygon, slot, spline and point</li>
         <li>Coincident, on-curve, horizontal, vertical, parallel, perpendicular, tangent, equal, midpoint, concentric, collinear, symmetric and fix constraints</li>
-        <li>One dimension tool for lengths, distances, radii, diameters and angles; values can be expressions such as <code>plate_w / 4</code></li>
+        <li>One dimension tool for lengths, distances, radii, diameters, ellipse axes and angles; values can be expressions such as <code>plate_w / 4</code></li>
         <li>Trim, offset (lines, arcs, circles and splines), fillet, mirror and project model edges into the sketch</li>
         <li>Real region detection: overlapping curves split into separate profiles you can pick individually</li>
       </ul>
@@ -219,6 +221,7 @@
         <li>Your own dimensions (linear, aligned, diameter, radius, angle) with tolerances, notes with leaders, GD&amp;T feature control frames and datums</li>
         <li>Parts list with material, mass and quantity, and numbered item balloons for assemblies</li>
         <li>Detail views: circle a small area and place an enlarged copy anywhere on the sheet</li>
+        <li>Several sheets per drawing, including a sheet for each part, printed together to one PDF</li>
         <li>Export the sheet as SVG, PDF or layered DXF</li>
         <li>Automatic scale and overall dimensions</li>
         <li>Title block with material, computed mass, units, sheet size and date</li>

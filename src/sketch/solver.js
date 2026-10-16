@@ -1,5 +1,5 @@
 // Geometric constraint solver for sketches.
-// Unknowns: x/y of every non-fixed point and the radius of every circle. Each constraint or driving
+// Unknowns: x/y of every non-fixed point, the radius of every circle and the minor radius of every ellipse. Each constraint or driving
 // dimension contributes residuals; the system is split into independent connected components and
 // each one is solved with damped least squares (Levenberg–Marquardt) starting from the current
 // geometry, so under-constrained sketches move as little as possible.
@@ -20,6 +20,7 @@ export function solveSketch(sk, { drag = null, maxIter = 60 } = {}) {
   const curves = new Map(sk.curves.map((c) => [c.id, c]));
   for (const [id, l] of Object.entries(VIRTUAL_LINES)) curves.set(id, l);
   for (const c of sk.curves) if (c.type === 'circle') rIdx.set(c.id, push(c.r, !c.projected));
+  for (const c of sk.curves) if (c.type === 'ellipse') rIdx.set(c.id, push(c.rb, !c.projected));
 
   // ---- residual terms ----
   const terms = []; // { deps: [varIdx], f: (X) => number[], src }
@@ -36,6 +37,12 @@ export function solveSketch(sk, { drag = null, maxIter = 60 } = {}) {
   const vec = (X, l) => { const [ax, ay] = P(l.a), [bx, by] = P(l.b); return [X[bx] - X[ax], X[by] - X[ay]]; };
   const pt = (X, id) => { const [i, j] = P(id); return [X[i], X[j]]; };
   const lineDeps = (l) => ptDeps(l.a, l.b);
+  // an ellipse: centre, major radius and direction (from its axis end point a), minor radius
+  const ellDeps = (c) => [rIdx.get(c.id), ...ptDeps(c.c, c.a)];
+  const ell = (X, c) => {
+    const C = pt(X, c.c), A = pt(X, c.a), ux = A[0] - C[0], uy = A[1] - C[1], rx = Math.hypot(ux, uy) || 1e-12;
+    return { C, rx, ry: Math.abs(X[rIdx.get(c.id)]), u: [ux / rx, uy / rx] };
+  };
   const add = (deps, f, src) => terms.push({ deps: [...new Set(deps.filter((d) => d !== undefined))], f, src });
   const errors = [];
 
@@ -78,6 +85,13 @@ export function solveSketch(sk, { drag = null, maxIter = 60 } = {}) {
         if (!need(P(k.p), c)) break;
         if (c.type === 'line') add([...ptDeps(k.p), ...lineDeps(c)], (X) => [ptLineDist(X, k.p, c, true)], src);
         else if (c.type === 'circle' || c.type === 'arc') add([...ptDeps(k.p), ...radiusDeps(c), ...ptDeps(c.c)], (X) => { const q = pt(X, k.p), C = pt(X, c.c); return [Math.hypot(q[0] - C[0], q[1] - C[1]) - radius(X, c)]; }, src);
+        else if (c.type === 'ellipse') add([...ptDeps(k.p), ...ellDeps(c)], (X) => {
+          // radial distance minus the ellipse's radius in that direction
+          const e = ell(X, c), q = pt(X, k.p), dx = q[0] - e.C[0], dy = q[1] - e.C[1];
+          const x = dx * e.u[0] + dy * e.u[1], y = -dx * e.u[1] + dy * e.u[0], rho = Math.hypot(x, y);
+          const kk = Math.hypot(x / e.rx, y / (e.ry || 1e-12));
+          return [kk > 1e-12 ? rho - rho / kk : -Math.min(e.rx, e.ry)];
+        }, src);
         break;
       }
       case 'horizontal':
@@ -110,7 +124,16 @@ export function solveSketch(sk, { drag = null, maxIter = 60 } = {}) {
         let c1 = curves.get(k.c1), c2 = curves.get(k.c2);
         if (!need(c1, c2)) break;
         if (c2.type === 'line') [c1, c2] = [c2, c1];
-        if (c1.type === 'line' && c2.type !== 'line') {
+        if (c1.type === 'line' && c2.type === 'ellipse') {
+          // the line's distance from the centre equals the ellipse's half-width across the line's normal
+          add([...lineDeps(c1), ...ellDeps(c2)], (X) => {
+            const e = ell(X, c2), d = vec(X, c1), L = Math.hypot(d[0], d[1]) || 1e-12, n = [-d[1] / L, d[0] / L];
+            const nu = n[0] * e.u[0] + n[1] * e.u[1], nv = -n[0] * e.u[1] + n[1] * e.u[0];
+            return [ptLineDist(X, c2.c, c1) - Math.hypot(e.rx * nu, e.ry * nv)];
+          }, src);
+        } else if (c1.type === 'ellipse' || c2.type === 'ellipse') {
+          errors.push({ id: k.id, msg: 'an ellipse can only be tangent to a line' });
+        } else if (c1.type === 'line' && c2.type !== 'line') {
           add([...lineDeps(c1), ...radiusDeps(c2), ...ptDeps(c2.c)], (X) => [ptLineDist(X, c2.c, c1) - radius(X, c2)], src);
         } else if (c1.type !== 'line' && c2.type !== 'line') {
           add([...radiusDeps(c1), ...radiusDeps(c2), ...ptDeps(c1.c, c2.c)], (X) => {
@@ -166,6 +189,12 @@ export function solveSketch(sk, { drag = null, maxIter = 60 } = {}) {
       case 'lineDist': {
         const l1 = lineOf(k.l1), l2 = lineOf(k.l2);
         if (need(l1, l2)) add([...lineDeps(l1), ...lineDeps(l2)], (X) => [ptLineDist(X, l2.a, l1) - val], src);
+        break;
+      }
+      case 'axis': {
+        // full length of an ellipse's major or minor axis
+        const c = curves.get(k.curve);
+        if (need(c && c.type === 'ellipse')) add(ellDeps(c), (X) => { const e = ell(X, c); return [2 * (k.which === 'minor' ? e.ry : e.rx) - val]; }, src);
         break;
       }
       case 'radius':
@@ -237,7 +266,7 @@ export function solveSketch(sk, { drag = null, maxIter = 60 } = {}) {
 
   // ---- write back ----
   const points = sk.points.map((p) => { const [i, j] = pIdx.get(p.id); return { ...p, x: X[i], y: X[j] }; });
-  const curvesOut = sk.curves.map((c) => (c.type === 'circle' ? { ...c, r: Math.abs(X[rIdx.get(c.id)]) } : c));
+  const curvesOut = sk.curves.map((c) => (c.type === 'circle' ? { ...c, r: Math.abs(X[rIdx.get(c.id)]) } : c.type === 'ellipse' ? { ...c, rb: Math.abs(X[rIdx.get(c.id)]) } : c));
 
   return {
     sketch: { ...sk, points, curves: curvesOut },

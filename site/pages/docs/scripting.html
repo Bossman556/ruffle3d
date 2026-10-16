@@ -72,6 +72,7 @@ r3d.log('Mass:', (await r3d.properties(plate)).mass.toFixed(1), 'g');</code></pr
         <tr><td><code>polyline([[x, y], …], closed?)</code></td><td>Connected lines.</td></tr>
         <tr><td><code>rect(x1, y1, x2, y2)</code>, <code>centerRect(cx, cy, w, h)</code></td><td>Rectangles.</td></tr>
         <tr><td><code>circle(cx, cy, r)</code></td><td>A circle.</td></tr>
+        <tr><td><code>ellipse(cx, cy, rx, ry, rotation?)</code></td><td>An ellipse with radius <code>rx</code> along its major axis and <code>ry</code> across it, turned <code>rotation</code> degrees from X.</td></tr>
         <tr><td><code>arc(cx, cy, r, a0, a1)</code></td><td>An arc, counter-clockwise from angle <code>a0</code> to <code>a1</code> in degrees.</td></tr>
         <tr><td><code>polygon(cx, cy, r, n, rotation?)</code></td><td>A regular polygon with <code>n</code> sides on a circle of radius <code>r</code>.</td></tr>
         <tr><td><code>slot(x1, y1, x2, y2, width)</code></td><td>A slot between two centres.</td></tr>

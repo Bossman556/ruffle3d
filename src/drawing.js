@@ -11,24 +11,41 @@ const SCALES = [10, 5, 4, 2, 1, 1 / 2, 1 / 2.5, 1 / 4, 1 / 5, 1 / 10, 1 / 20, 1 
 const scaleLabel = (s) => (s >= 1 ? `${s}:1` : `1:${+(1 / s).toFixed(1)}`);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const f1 = (x) => (Math.round(x * 100) / 100).toString();
+const DEFAULT_OPTS = { sheet: 'A3', scale: 'auto', hidden: true, iso: true, dims: true, section: 'none', sectionAt: 50, parts: true, balloons: true, holes: true };
 
 export class DrawingWorkspace {
   constructor(app) {
     this.app = app;
     this.isOpen = false;
-    this.opts = { sheet: 'A3', scale: 'auto', hidden: true, iso: true, dims: true, section: 'none', sectionAt: 50, parts: true, balloons: true, holes: true };
+    this.sheetId = 's1';
     this.tool = 'select';
     this.dimMode = 'auto';
     this.sel = null;
     this.pending = null;
   }
 
-  get annos() { return (this.app.doc.dwgAnno ||= []); }
+  // Sheets: the first shows every visible body (its annotations are the design's original dwgAnno); later
+  // sheets show chosen bodies. Each sheet keeps its own options and annotations.
+  get sheets() {
+    const d = this.app.doc;
+    if (!d.dwgSheets?.length) d.dwgSheets = [{ id: 's1', name: 'Sheet 1', ids: null }];
+    return d.dwgSheets;
+  }
+  get sheet() { return this.sheets.find((s) => s.id === this.sheetId) || this.sheets[0]; }
+  get opts() { return (this.sheet.opts ||= { ...DEFAULT_OPTS }); }
+  get annos() { const s = this.sheet; return s.id === 's1' ? (this.app.doc.dwgAnno ||= []) : (s.anno ||= []); }
+  set annos(v) { const s = this.sheet; if (s.id === 's1') this.app.doc.dwgAnno = v; else s.anno = v; }
+  idsFor(sheet) {
+    const app = this.app, all = app.result.bodies.map((b) => b.id);
+    return sheet.ids ? sheet.ids.filter((id) => all.includes(id)) : all.filter((id) => app.bodyMeta(id).visible !== false);
+  }
 
   async open(onBack) {
     this.onBack = onBack;
     const app = this.app;
-    const ids = app.result.bodies.map((b) => b.id).filter((id) => app.bodyMeta(id).visible !== false);
+    if (!this.sheets.some((s) => s.id === this.sheetId)) this.sheetId = this.sheets[0].id;
+    let ids = this.idsFor(this.sheet);
+    if (!ids.length && this.sheetId !== this.sheets[0].id) { this.sheetId = this.sheets[0].id; ids = this.idsFor(this.sheet); }
     if (!ids.length) return app.toast('There are no visible bodies to draw');
     this.ids = ids;
     this.isOpen = true;
@@ -94,21 +111,31 @@ export class DrawingWorkspace {
         <button class="btn primary" data-a="close">${icon('cube')}Back to model</button>
       </div>
       <div class="dw-hint">${this.hint()}</div>
-      <div class="dw-canvas">${this.sheetSVG()}</div>`;
+      <div class="dw-canvas">${this.sheetSVG()}</div>
+      <div class="dw-tabs">${this.sheets.map((sh, i) => `<button class="dw-tab ${sh.id === this.sheet.id ? 'on' : ''}" data-sheet="${sh.id}" data-tip="${i ? 'Double-click to rename' : 'Every visible part. Double-click to rename'}">${icon('file')}<span>${esc(sh.name)}</span>${i ? `<i data-del="${sh.id}" data-tip="Delete sheet">${icon('close')}</i>` : ''}</button>`).join('')}
+        <button class="dw-tab add" data-addsheet data-tip="Add a sheet for one part, or one for every part">${icon('plus')}Sheet</button>
+        <span class="spacer"></span><span class="muted small">${this.sheets.length} sheet${this.sheets.length === 1 ? '' : 's'} · Print / PDF prints them all</span></div>`;
     this.bindSheet();
+    this.el.querySelectorAll('[data-sheet]').forEach((b) => {
+      b.onclick = (e) => { if (!e.target.closest('[data-del]')) this.switchSheet(b.dataset.sheet); };
+      b.ondblclick = () => { const sh = this.sheets.find((x) => x.id === b.dataset.sheet); this.textDialog('Rename sheet', sh.name, (v) => { if (v) { this.app.snapshot(); sh.name = v.slice(0, 40); this.app.scheduleSave(); this.render(); } }); };
+    });
+    this.el.querySelectorAll('[data-del]').forEach((b) => (b.onclick = () => this.deleteSheet(b.dataset.del)));
+    this.el.querySelector('[data-addsheet]').onclick = () => this.addSheetDialog();
     this.el.querySelectorAll('[data-tool]').forEach((b) => (b.onclick = () => { this.tool = b.dataset.tool; this.pending = null; this.render(); }));
     this.el.querySelector('[data-dm]')?.addEventListener('change', (e) => { this.dimMode = e.target.value; });
     if (!this._keys) {
       this._keys = (e) => {
         if (!this.isOpen || e.target.closest?.('input, textarea, select')) return;
         if (e.key === 'Escape' && (this.pending || this.tool !== 'select')) { e.stopPropagation(); e.preventDefault(); if (this.pending) this.pending = null; else this.tool = 'select'; this.render(); }
-        if ((e.key === 'Delete' || e.key === 'Backspace') && this.sel) { e.preventDefault(); this.app.snapshot(); this.app.doc.dwgAnno = this.annos.filter((a) => a.id !== this.sel); this.sel = null; this.app.scheduleSave(); this.redraw(); }
+        if ((e.key === 'Delete' || e.key === 'Backspace') && this.sel) { e.preventDefault(); this.app.snapshot(); this.annos = this.annos.filter((a) => a.id !== this.sel); this.sel = null; this.app.scheduleSave(); this.redraw(); }
       };
       document.addEventListener('keydown', this._keys, true);
     }
     this.el.querySelectorAll('[data-o]').forEach((inp) => (inp.onchange = async () => {
       const k = inp.dataset.o;
       o[k] = inp.type === 'checkbox' ? inp.checked : inp.type === 'range' ? +inp.value : inp.value;
+      this.app.scheduleSave();
       if (k === 'section' || k === 'sectionAt') {
         this.el.querySelector('.dw-canvas').style.opacity = 0.5;
         try { await this.fetch(); } catch (e) { this.app.toast(e.message, 'warn'); }
@@ -118,10 +145,64 @@ export class DrawingWorkspace {
     this.el.querySelector('[data-o=sectionAt]')?.addEventListener('input', (e) => { this.el.querySelector('[data-sa]').textContent = `${e.target.value}%`; });
     this.el.querySelector('[data-a=close]').onclick = () => this.close();
     this.el.querySelector('[data-a=svg]').onclick = () => {
-      this.app.download(new Blob([this.sheetSVG(true)], { type: 'image/svg+xml' }), `${this.app.doc.name}-drawing.svg`);
+      this.app.download(new Blob([this.sheetSVG(true)], { type: 'image/svg+xml' }), `${this.fileBase()}.svg`);
     };
     this.el.querySelector('[data-a=print]').onclick = () => this.print();
     this.el.querySelector('[data-a=dxf]').onclick = () => this.exportDXF();
+  }
+
+  // ---------------------------------------------------------------- sheets
+  fileBase() { return `${this.app.doc.name}-${this.sheets.length > 1 ? this.sheet.name.replace(/[\\/:*?"<>|]+/g, '_') : 'drawing'}`; }
+
+  async switchSheet(id) {
+    if (id === this.sheetId && this.data) return;
+    const prev = this.sheetId;
+    this.sheetId = id;
+    const ids = this.idsFor(this.sheet);
+    if (!ids.length) { this.sheetId = prev; return this.app.toast('The parts on this sheet no longer exist. Delete the sheet or add a new one'); }
+    this.ids = ids;
+    this.sel = null; this.pending = null;
+    this.el.querySelector('.dw-canvas').style.opacity = 0.5;
+    try { await this.fetch(); } catch (e) { this.app.toast(e.message, 'warn'); }
+    this.render();
+  }
+
+  addSheetDialog() {
+    const app = this.app, all = app.result.bodies.map((b) => b.id);
+    const name = (id) => app.partInfo(id).name || app.bodyMeta(id).name;
+    const m = app.modal('New sheet', `
+      <div class="field"><label>Show</label><select class="input" data-what>
+        <option value="one">One part</option><option value="each">A sheet for every part (${all.length})</option><option value="all">All visible parts</option></select></div>
+      <div class="field" data-partrow><label>Part</label><select class="input" data-part>${all.map((id) => `<option value="${id}">${esc(name(id))}</option>`).join('')}</select></div>
+      <div class="help">Each sheet keeps its own size, scale, views and annotations.</div>`, {
+      ic: 'file', okLabel: 'Add',
+      onOk: (el) => {
+        const what = el.querySelector('[data-what]').value, part = el.querySelector('[data-part]').value;
+        app.snapshot();
+        const mk = (ids, label) => { const sh = { id: `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, name: label, ids }; this.sheets.push(sh); return sh; };
+        let first;
+        if (what === 'each') {
+          // identical parts (same shape) need only one sheet
+          const seen = new Set();
+          for (const id of all) { const k = app.partInfo(id).key; if (seen.has(k)) continue; seen.add(k); const sh = mk([id], name(id)); first ||= sh; }
+        } else first = mk(what === 'all' ? null : [part], what === 'all' ? `Sheet ${this.sheets.length + 1}` : name(part));
+        app.scheduleSave();
+        if (first) this.switchSheet(first.id);
+      },
+    });
+    const sync = () => { m.querySelector('[data-partrow]').style.display = m.querySelector('[data-what]').value === 'one' ? '' : 'none'; };
+    m.querySelector('[data-what]').onchange = sync;
+  }
+
+  deleteSheet(id) {
+    const sh = this.sheets.find((s) => s.id === id);
+    if (!sh || sh === this.sheets[0]) return;
+    this.app.snapshot();
+    this.app.doc.dwgSheets = this.sheets.filter((s) => s !== sh);
+    this.app.scheduleSave();
+    this.app.toast(`Deleted ${sh.name} (Ctrl Z to undo)`);
+    if (this.sheetId === id) this.switchSheet(this.sheets[0].id);
+    else this.render();
   }
 
   // ---------------------------------------------------------------- sheet layout
@@ -257,11 +338,13 @@ export class DrawingWorkspace {
     const bx = W - margin - 180, by = H - margin - tbH;
     const cell = (x, y, w, h, label, value, big) => `<rect x="${x}" y="${y}" width="${w}" height="${h}"/><text x="${x + 1.5}" y="${y + 3.2}" class="tblabel">${label}</text><text x="${x + 1.5}" y="${y + h - 2.2}" class="${big ? 'tbbig' : 'tbval'}">${esc(value)}</text>`;
     const today = new Date().toISOString().slice(0, 10);
+    const sheetNo = this.sheets.indexOf(this.sheet) + 1, nSheets = this.sheets.length;
+    const titleText = nSheets > 1 && this.sheet.ids?.length === 1 ? `${app.doc.name} · ${app.partInfo(this.ids[0]).name || this.sheet.name}` : app.doc.name;
     const title = `<g class="tb" fill="none" stroke="#111" stroke-width="0.35">
-      ${cell(bx, by, 110, 17, 'TITLE', app.doc.name, true)}
+      ${cell(bx, by, 110, 17, 'TITLE', titleText.length > 40 ? `${titleText.slice(0, 39)}…` : titleText, true)}
       ${cell(bx + 110, by, 70, 17, 'MATERIAL', mat ? mat.name : this.ids.length > 1 ? `${this.ids.length} bodies` : '—')}
       ${cell(bx, by + 17, 36, 17, 'SCALE', scaleLabel(s))}
-      ${cell(bx + 36, by + 17, 26, 17, 'SHEET', o.sheet)}
+      ${cell(bx + 36, by + 17, 26, 17, 'SHEET', nSheets > 1 ? `${sheetNo} / ${nSheets} · ${o.sheet}` : o.sheet)}
       ${cell(bx + 62, by + 17, 30, 17, 'UNITS', U.label)}
       ${cell(bx + 92, by + 17, 34, 17, 'MASS', mass)}
       ${cell(bx + 126, by + 17, 54, 17, 'DATE', today)}
@@ -618,18 +701,32 @@ export class DrawingWorkspace {
     try {
       const svg = box.querySelector('svg');
       const ents = svgToDXFEntities(svg, H);
-      this.app.download(new Blob([writeDXF(ents, 4)], { type: 'application/dxf' }), `${this.app.doc.name}-drawing.dxf`);
+      this.app.download(new Blob([writeDXF(ents, 4)], { type: 'application/dxf' }), `${this.fileBase()}.dxf`);
       this.app.toast(`Exported ${ents.length} entities to DXF`, 'ok');
     } catch (e) { this.app.toast(`DXF export failed: ${e.message}`, 'warn'); } finally { box.remove(); }
   }
 
-  print() {
-    const [W, H] = SHEETS[this.opts.sheet];
+  // every sheet, one page each (each page its own paper size)
+  async print() {
     const w = window.open('', '_blank');
     if (!w) return this.app.toast('Allow pop-ups to print the drawing');
+    w.document.write('<!doctype html><title>Preparing drawing…</title><p style="font:14px sans-serif;padding:20px">Preparing sheets…</p>');
+    const cur = this.sheetId, pages = [];
+    try {
+      for (const sh of this.sheets) {
+        const ids = this.idsFor(sh);
+        if (!ids.length) continue;
+        if (sh.id !== this.sheetId || !this.data) { this.sheetId = sh.id; this.ids = ids; await this.fetch(); }
+        pages.push({ size: this.opts.sheet, svg: this.sheetSVG(true) });
+      }
+    } finally {
+      if (this.sheetId !== cur) { this.sheetId = cur; this.ids = this.idsFor(this.sheet); await this.fetch(); }
+    }
+    const sizes = [...new Set(pages.map((p) => p.size))];
+    w.document.open();
     w.document.write(`<!doctype html><html><head><title>${esc(this.app.doc.name)} drawing</title>
-      <style>@page{size:${W}mm ${H}mm;margin:0}html,body{margin:0}svg{width:${W}mm;height:${H}mm;display:block}</style></head>
-      <body>${this.sheetSVG(true)}<script>setTimeout(()=>print(),300)<\/script></body></html>`);
+      <style>${sizes.map((k) => `@page p${k}{size:${SHEETS[k][0]}mm ${SHEETS[k][1]}mm;margin:0}.p${k}{page:p${k};width:${SHEETS[k][0]}mm;height:${SHEETS[k][1]}mm}`).join('')}html,body{margin:0}.pg{break-after:page;overflow:hidden}.pg:last-child{break-after:auto}.pg svg{width:100%;height:100%;display:block}</style></head>
+      <body>${pages.map((p) => `<div class="pg p${p.size}">${p.svg}</div>`).join('')}<script>setTimeout(()=>print(),400)<\/script></body></html>`);
     w.document.close();
   }
 }

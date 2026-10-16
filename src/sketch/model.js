@@ -3,7 +3,8 @@
 // sketch = {
 //   points:      [{ id, x, y, fixed? }]
 //   curves:      [{ id, type: 'line', a, b } | { id, type: 'circle', c, r } | { id, type: 'arc', c, a, b }   (ccw a→b)
-//                 | { id, type: 'spline', pts: [pointIds], closed }]  (+ construction?, projected?)
+//                 | { id, type: 'spline', pts: [pointIds], closed }
+//                 | { id, type: 'ellipse', c, a, rb }]  (a: end of the major axis, rb: minor radius)  (+ construction?, projected?)
 //   constraints: [{ id, type, ...refs }]
 //   dims:        [{ id, type, ...refs, expr, value?, off: [du, dv] }]
 // }
@@ -55,6 +56,54 @@ export function bezPoint([p0, c1, c2, p1], t) {
   ];
 }
 
+// Point ids a curve is built on.
+export function curvePointIds(c) {
+  if (c.type === 'line') return [c.a, c.b];
+  if (c.type === 'circle') return [c.c];
+  if (c.type === 'arc') return [c.c, c.a, c.b];
+  if (c.type === 'ellipse') return [c.c, c.a];
+  return c.pts || [];
+}
+
+// ---------- ellipses ----------
+// e = { c, rx, ry, rot }: centre, major and minor radius, angle of the major axis.
+// Points are c + rx·cos t·u + ry·sin t·v with u along the major axis and v perpendicular to it.
+export function ellipsePoint(e, t) {
+  const cr = Math.cos(e.rot), sr = Math.sin(e.rot), x = e.rx * Math.cos(t), y = e.ry * Math.sin(t);
+  return [e.c[0] + x * cr - y * sr, e.c[1] + x * sr + y * cr];
+}
+// Local coordinates of p in the ellipse frame.
+export function ellipseLocal(e, p) {
+  const dx = p[0] - e.c[0], dy = p[1] - e.c[1], cr = Math.cos(e.rot), sr = Math.sin(e.rot);
+  return [dx * cr + dy * sr, -dx * sr + dy * cr];
+}
+// Parameter of the point on the ellipse closest to p (coarse search, then Newton).
+export function ellipseClosestT(e, p) {
+  const [x, y] = ellipseLocal(e, p);
+  let best = 0, bd = Infinity;
+  for (let i = 0; i < 64; i++) {
+    const t = (i / 64) * TAU, d = (e.rx * Math.cos(t) - x) ** 2 + (e.ry * Math.sin(t) - y) ** 2;
+    if (d < bd) { bd = d; best = t; }
+  }
+  let t = best;
+  for (let k = 0; k < 30; k++) {
+    const c = Math.cos(t), s = Math.sin(t);
+    // f(t) = d/dt ½|E(t) − p|²
+    const f = (e.rx * c - x) * -e.rx * s + (e.ry * s - y) * e.ry * c;
+    const df = e.rx * e.rx * s * s - (e.rx * c - x) * e.rx * c + e.ry * e.ry * c * c - (e.ry * s - y) * e.ry * s;
+    if (Math.abs(df) < 1e-14) break;
+    const step = f / df;
+    t -= Math.max(-0.5, Math.min(0.5, step));
+    if (Math.abs(step) < 1e-13) break;
+  }
+  return normAng(t);
+}
+// Perimeter (Ramanujan's second approximation: relative error below 1e-9 for b/a > 0.1).
+export function ellipsePerimeter(rx, ry) {
+  const h = ((rx - ry) / (rx + ry)) ** 2;
+  return Math.PI * (rx + ry) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
+}
+
 // Geometry with resolved coordinates. Returns null for curves with missing points.
 export function curveGeom(sk, c) {
   const P = (id) => pointPos(sk, id);
@@ -76,6 +125,12 @@ export function curveGeom(sk, c) {
     // the end point lies exactly on the circle in the evaluated geometry
     const bb = [ctr[0] + r * Math.cos(a0 + sweep), ctr[1] + r * Math.sin(a0 + sweep)];
     return { id: c.id, type: 'arc', c: ctr, r, a0, sweep, pa: a, pb: bb, construction: !!c.construction, projected: !!c.projected };
+  }
+  if (c.type === 'ellipse') {
+    const ctr = P(c.c), a = P(c.a);
+    if (!ctr || !a) return null;
+    const rx = Math.hypot(a[0] - ctr[0], a[1] - ctr[1]);
+    return { id: c.id, type: 'ellipse', c: ctr, rx, ry: Math.abs(c.rb), rot: Math.atan2(a[1] - ctr[1], a[0] - ctr[0]), pa: a, construction: !!c.construction, projected: !!c.projected };
   }
   if (c.type === 'spline') {
     const pts = c.pts.map(P);
@@ -102,6 +157,11 @@ export function sampleGeom(g, seg = 64) {
     for (let i = 0; i <= n; i++) { const t = g.a0 + (g.sweep * i) / n; out.push([g.c[0] + g.r * Math.cos(t), g.c[1] + g.r * Math.sin(t)]); }
     return out;
   }
+  if (g.type === 'ellipse') {
+    const out = [];
+    for (let i = 0; i <= seg; i++) out.push(ellipsePoint(g, (i / seg) * TAU));
+    return out;
+  }
   if (g.type === 'spline') {
     const out = [];
     g.bez.forEach((b, i) => { for (let k = i ? 1 : 0; k <= 16; k++) out.push(bezPoint(b, k / 16)); });
@@ -119,6 +179,7 @@ export function distToSeg(p, a, b) {
 }
 
 export function distToGeom(p, g) {
+  if (g.type === 'ellipse') { const q = ellipsePoint(g, ellipseClosestT(g, p)); return Math.hypot(p[0] - q[0], p[1] - q[1]); }
   if (g.type === 'circle') return Math.abs(Math.hypot(p[0] - g.c[0], p[1] - g.c[1]) - g.r);
   if (g.type === 'arc') {
     const ang = normAng(Math.atan2(p[1] - g.c[1], p[0] - g.c[0]) - g.a0);
@@ -131,8 +192,9 @@ export function distToGeom(p, g) {
   return d;
 }
 
-// Closest point on a curve and its parameter (line: t ∈ [0,1]; circle/arc: absolute angle).
+// Closest point on a curve and its parameter (line: t ∈ [0,1]; circle/arc: absolute angle; ellipse: its parameter).
 export function closestOnGeom(p, g) {
+  if (g.type === 'ellipse') { const t = ellipseClosestT(g, p); return { p: ellipsePoint(g, t), t }; }
   if (g.type === 'line') {
     const dx = g.b[0] - g.a[0], dy = g.b[1] - g.a[1];
     const l2 = dx * dx + dy * dy || 1;
@@ -191,12 +253,43 @@ function circleCircle(c1, r1, c2, r2) {
   return pts.map((p) => ({ p, ang1: Math.atan2(p[1] - c1[1], p[0] - c1[0]), ang2: Math.atan2(p[1] - c2[1], p[0] - c2[0]) }));
 }
 
+// a point in an ellipse's unit-circle frame: there the ellipse is the unit circle and the polar angle is its parameter
+const unitFrame = (e, p) => { const [x, y] = ellipseLocal(e, p); return [x / e.rx, y / e.ry]; };
+const ellParam = (e, p) => { const [x, y] = unitFrame(e, p); return normAng(Math.atan2(y, x)); };
+
+function lineEllipse(a, b, e) {
+  // affine maps keep the line parameter, so intersect the mapped line with the unit circle
+  return lineCircle(unitFrame(e, a), unitFrame(e, b), [0, 0], 1).map((h) => ({ p: [a[0] + (b[0] - a[0]) * h.t, a[1] + (b[1] - a[1]) * h.t], t: h.t, ang: normAng(h.ang) }));
+}
+// crossings of an ellipse with a circle, arc or another ellipse: sign changes of the other curve's implicit
+// function along the ellipse, refined by bisection (touching without crossing is not reported)
+function ellipseCurve(e, g) {
+  const f = g.type === 'ellipse' ? (p) => Math.hypot(...unitFrame(g, p)) - 1 : (p) => Math.hypot(p[0] - g.c[0], p[1] - g.c[1]) - g.r;
+  const F = (t) => f(ellipsePoint(e, t)), N = 256, out = [];
+  let t0 = 0, f0 = F(0);
+  for (let i = 1; i <= N; i++) {
+    const t1 = (i / N) * TAU, f1 = F(t1);
+    if (f0 === 0 || f0 * f1 < 0) {
+      let lo = t0, hi = t1, flo = f0;
+      for (let k = 0; k < 60 && hi - lo > 1e-15; k++) { const m = (lo + hi) / 2, fm = F(m); if (flo * fm <= 0) hi = m; else { lo = m; flo = fm; } }
+      const t = normAng((lo + hi) / 2), p = ellipsePoint(e, t);
+      if (!out.some((h) => Math.abs(h.s - t) < 1e-9)) out.push({ p, s: t, t: g.type === 'ellipse' ? ellParam(g, p) : Math.atan2(p[1] - g.c[1], p[0] - g.c[0]) });
+    }
+    t0 = t1; f0 = f1;
+  }
+  return out;
+}
+
 const onArc = (g, ang, tol = 1e-9) => g.type === 'circle' || normAng(ang - g.a0) <= g.sweep + tol || normAng(ang - g.a0) >= TAU - tol;
 
 /** Intersections between two geometries: [{ p, s, t }] where s/t are params on g1/g2 (line t, circle/arc angle). */
 export function intersect(g1, g2, tolT = 1e-9) {
-  const L = (g) => g.type === 'line', C = (g) => g.type === 'circle' || g.type === 'arc';
+  const L = (g) => g.type === 'line', C = (g) => g.type === 'circle' || g.type === 'arc', E = (g) => g.type === 'ellipse';
   const inLine = (t) => t >= -tolT && t <= 1 + tolT;
+  if (L(g1) && E(g2)) return lineEllipse(g1.a, g1.b, g2).filter((h) => inLine(h.t)).map((h) => ({ p: h.p, s: h.t, t: h.ang }));
+  if (E(g1) && L(g2)) return intersect(g2, g1, tolT).map((h) => ({ p: h.p, s: h.t, t: h.s }));
+  if (E(g1) && (C(g2) || E(g2))) return ellipseCurve(g1, g2).filter((h) => !C(g2) || onArc(g2, h.t));
+  if (C(g1) && E(g2)) return intersect(g2, g1, tolT).map((h) => ({ p: h.p, s: h.t, t: h.s }));
   if (L(g1) && L(g2)) return lineLine(g1.a, g1.b, g2.a, g2.b).filter((h) => inLine(h.t) && inLine(h.u)).map((h) => ({ p: h.p, s: h.t, t: h.u }));
   if (L(g1) && C(g2)) return lineCircle(g1.a, g1.b, g2.c, g2.r).filter((h) => inLine(h.t) && onArc(g2, h.ang)).map((h) => ({ p: h.p, s: h.t, t: h.ang }));
   if (C(g1) && L(g2)) return intersect(g2, g1, tolT).map((h) => ({ p: h.p, s: h.t, t: h.s }));

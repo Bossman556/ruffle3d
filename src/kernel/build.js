@@ -46,10 +46,14 @@ function loopDrawing(pieces) {
     const end = i === pieces.length - 1 ? start : pieceAt(pc, 1);
     if (pc.type === 'line') pen = pen.lineTo(end);
     else if (pc.type === 'arc') pen = pen.threePointsArcTo(end, pieceAt(pc, 0.5));
+    else if (pc.type === 'ell') pen = pen.ellipseTo(end, pc.rx, pc.ry, pc.rot * RAD, false, pc.sw > 0);
     else pen = pen.cubicBezierCurveTo(end, pc.b[1], pc.b[2]);
   });
   return pen.close();
 }
+// a whole sketch ellipse as an exact closed wire
+const ellipseQuarters = (g) => [0, 1, 2, 3].map((i) => ({ type: 'ell', c: g.c, rx: g.rx, ry: g.ry, rot: g.rot, s: (i * Math.PI) / 2, sw: Math.PI / 2 }));
+const ellipseWire = (g, plane) => loopDrawing(ellipseQuarters(g)).sketchOnPlane(mkPlane(plane)).wire;
 
 function regionDrawing(r) {
   let d = loopDrawing(r.pieces);
@@ -81,6 +85,7 @@ function sampleSketchCurve(g) {
   if (g.type === 'line') return [g.a, g.b];
   if (g.type === 'circle') return Array.from({ length: 257 }, (_, i) => [g.c[0] + g.r * Math.cos((i / 256) * 2 * Math.PI), g.c[1] + g.r * Math.sin((i / 256) * 2 * Math.PI)]);
   if (g.type === 'arc') { const n = Math.max(8, Math.ceil(g.sweep / 0.02)); return Array.from({ length: n + 1 }, (_, i) => { const t = g.a0 + (g.sweep * i) / n; return [g.c[0] + g.r * Math.cos(t), g.c[1] + g.r * Math.sin(t)]; }); }
+  if (g.type === 'ellipse') return Array.from({ length: 513 }, (_, i) => pieceAt({ type: 'ell', ...g, s: 0, sw: 2 * Math.PI }, i / 512));
   const out = [];
   g.bez.forEach((b, j) => { for (let k = j ? 1 : 0; k <= 48; k++) { const t = k / 48, u = 1 - t; out.push([0, 1].map((d) => u * u * u * b[0][d] + 3 * u * u * t * b[1][d] + 3 * u * t * t * b[2][d] + t * t * t * b[3][d])); } });
   return out;
@@ -129,6 +134,8 @@ function pathWire(sk) {
     const g = gs[0];
     return drawCircle(g.r).translate(g.c[0], g.c[1]).sketchOnPlane(mkPlane(sk.plane)).wire;
   }
+  if (gs.length === 1 && gs[0].type === 'ellipse') return ellipseWire(gs[0], sk.plane);
+  if (gs.some((g) => g.type === 'ellipse')) throw new Error('An ellipse is a closed path on its own; it cannot be joined to other curves');
   const ends = (g) => (g.type === 'line' ? [g.a, g.b] : g.type === 'arc' ? [g.pa, g.pb] : [g.pts[0], g.closed ? g.pts[0] : g.pts[g.pts.length - 1]]);
   const same = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 1e-6;
   const remaining = gs.filter((g) => g.type !== 'circle');
@@ -169,6 +176,7 @@ function chainWires(sk) {
   const remaining = [];
   for (const g of gs) {
     if (g.type === 'circle') wires.push(drawCircle(g.r).translate(g.c[0], g.c[1]).sketchOnPlane(mkPlane(sk.plane)).wire);
+    else if (g.type === 'ellipse') wires.push(ellipseWire(g, sk.plane));
     else remaining.push(g);
   }
   while (remaining.length) {
@@ -213,6 +221,17 @@ const singleWire = (st, id, what) => {
   if (ws.length !== 1) throw new Error(`Each ${what} sketch must be one connected curve (found ${ws.length})`);
   return ws[0];
 };
+
+// The solids of a shape (a compound after a boolean can hold several).
+function solidList(shape) {
+  const oc = getOC(), out = [];
+  const ex = new oc.TopExp_Explorer(shape.wrapped, oc.TopAbs_ShapeEnum.TopAbs_SOLID, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+  for (; ex.More(); ex.Next()) out.push(cast(downcast(ex.Current())));
+  ex.delete();
+  return out;
+}
+// A sketch point in world coordinates.
+const toWorld3 = (pl, [u, v]) => add(add(pl.origin, mul(pl.xDir, u)), mul(yDirOf(pl), v));
 
 // True if the shape contains at least one solid (otherwise it is a surface / open shell).
 export function hasSolid(shape) {
@@ -2202,6 +2221,90 @@ const BUILDERS = {
     const mk = new oc.BRepOffsetAPI_MakeOffsetShape();
     mk.PerformBySimple(src.wrapped, p.distance);
     st.bodies.set(f.id, shapeOf(mk));
+  },
+
+  // Wrap / emboss: the sketch's regions are laid onto a cylindrical face unrolled at true size (sketch X runs round
+  // the cylinder, Y along its axis) or onto a flat face, with the sketch origin at the clicked point, then
+  // thickened off the face and added to (emboss) or cut from (deboss) the body.
+  wrap(f, st) {
+    const { p } = f;
+    const sk = getSketch(st, p.sketch, 'to wrap');
+    if (!p.face?.length) throw new Error('Click the face to wrap onto');
+    if (!(p.height > 0)) throw new Error('Height must be positive');
+    const pk = p.face[0];
+    const { body, face, q, tol } = pickedFace(st, pk);
+    if (face.geomType !== 'CYLINDRE' && face.geomType !== 'PLANE') throw new Error('Wrap works on cylindrical and flat faces');
+    const oc = getOC();
+    const n = unit(pk.n || vxyz(face.normalAt(q)));
+    let R = 1;
+    if (face.geomType === 'CYLINDRE') { const ad = new oc.BRepAdaptor_Surface(face.wrapped, true); const cy = ad.Cylinder(); R = cy.Radius(); cy.delete(); ad.delete(); }
+    const [u, v] = face.uvCoordinates(q);
+    let base = profileDrawing(sk, p.profiles);
+    if (p.rotate) base = base.rotate(p.rotate, [0, 0]);
+    // lay the drawing on the face; the unrolled direction of u depends on how the surface was made, so
+    // keep the placement whose centre lands nearest the clicked point
+    const lay = (sx) => {
+      const sks = base.translate(sx * u * R, v).sketchOnFace(face, 'original');
+      return (sks.sketches || [sks]).map((s) => s.face());
+    };
+    const spread = (fs) => { const b = fs.map((x) => bboxOf(x)), c = mul(b.reduce((a, x) => add(a, x.center), [0, 0, 0]), 1 / b.length); return len(sub(c, q)); };
+    let faces = lay(1);
+    if (face.geomType === 'CYLINDRE') { const alt = lay(-1); if (spread(alt) < spread(faces)) faces = alt; }
+    const h = p.height, out = p.mode !== 'deboss';
+    let result = body;
+    for (const fc of faces) {
+      // thicken towards the outside of the body for emboss, into it for deboss
+      const thick = (t) => { const mk = new oc.BRepOffsetAPI_MakeThickSolid(); mk.MakeThickSolidBySimple(fc.wrapped, t); mk.Build(); return outward(shapeOf(mk)); };
+      let s = thick(h);
+      const side = dot(sub(measureShapeVolumeProperties(s).centerOfMass, vxyz(fc.center)), n);
+      if ((side > 0) !== out) s = thick(-h);
+      if (!hasSolid(s)) throw new Error('Could not thicken the wrapped shape');
+      result = out ? result.fuse(s) : result.cut(s);
+    }
+    st.bodies.set(pk.body, result);
+  },
+
+  // Rib: an open sketch curve, thickened about its plane, filled in the sketch plane out to the walls of the body.
+  // The curve is extended at both ends past the part; the slab on one side of it, minus the body, falls into
+  // pieces. The pieces that touch the curve and stay inside the part's extent are the rib.
+  rib(f, st) {
+    const { p } = f;
+    const sk = getSketch(st, p.sketch, 'for the rib');
+    const body = getBody(st, p.body, 'Body for the rib');
+    if (!(p.thickness > 0)) throw new Error('Thickness must be positive');
+    const path = pathPolyline(sk);
+    if (path.closed) throw new Error('A rib sketch must be an open curve (for a closed shape use Extrude)');
+    const pts = path.pts, n = pts.length;
+    const bb = bboxOf(body), L = 2 * bb.diag + 10, tol = tolFor(body);
+    const u2 = (a, b) => { const d = [a[0] - b[0], a[1] - b[1]], l = Math.hypot(d[0], d[1]) || 1; return [d[0] / l, d[1] / l]; };
+    const d0 = u2(pts[0], pts[1]), d1 = u2(pts[n - 1], pts[n - 2]);
+    const chain = [[pts[0][0] + d0[0] * L, pts[0][1] + d0[1] * L], ...pts, [pts[n - 1][0] + d1[0] * L, pts[n - 1][1] + d1[1] * L]];
+    const pl = sk.plane, nrm = unit(pl.normal), t = p.thickness;
+    const z0 = p.thick === 'front' ? 0 : p.thick === 'back' ? -t : -t / 2;
+    const slabPlane = new Plane(add(pl.origin, mul(nrm, z0)), pl.xDir, pl.normal);
+    // sample points along the drawn curve (not the extensions): a rib piece must touch it
+    const probes = [];
+    for (let k = 0; k <= 24; k++) { const q = path.at((path.len * k) / 24).p; probes.push(add(toWorld3(pl, q), mul(nrm, z0 + t / 2))); }
+    const inside = (s) => { const b = bboxOf(s); return [0, 1, 2].every((i) => b.lo[i] >= bb.lo[i] - tol * 10 && b.hi[i] <= bb.hi[i] + tol * 10); };
+    const fill = (side) => {
+      // travel direction at each end, turned 90° towards the chosen side
+      const s0 = [-d0[0], -d0[1]], s1 = [d1[0], d1[1]];
+      const nn = (d) => [-d[1] * side, d[0] * side];
+      const far = [[chain.at(-1)[0] + nn(s1)[0] * 2 * L, chain.at(-1)[1] + nn(s1)[1] * 2 * L], [chain[0][0] + nn(s0)[0] * 2 * L, chain[0][1] + nn(s0)[1] * 2 * L]];
+      let pen = draw(chain[0]);
+      for (const q of [...chain.slice(1), ...far]) pen = pen.lineTo(q);
+      const slab = pen.close().sketchOnPlane(slabPlane).extrude(t);
+      const pieces = solidList(slab.cut(body)).filter((s) => inside(s) && probes.some((q) => near(s, q, tol * 10)));
+      return { pieces, volume: pieces.reduce((v, s) => v + Math.abs(measureVolume(s)), 0) };
+    };
+    const a = fill(1), b = fill(-1);
+    const opts = [a, b].filter((x) => x.volume > 1e-9).sort((x, y) => x.volume - y.volume);
+    if (!opts.length) throw new Error('The rib does not reach the body on either side. Draw it on a plane through the part, with its ends at or into the walls');
+    const pick = p.side === 'flip' ? opts[1] : opts[0];
+    if (!pick) throw new Error('Only one side of this rib meets the body, so it cannot be flipped');
+    let out = body;
+    for (const s of pick.pieces) out = out.fuse(s);
+    st.bodies.set(p.body, out);
   },
 
   thicken(f, st) {

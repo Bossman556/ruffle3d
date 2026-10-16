@@ -6,7 +6,7 @@ import { evaluate, evaluateLen } from './expr.js';
 import { icon } from './icons.js';
 import {
   uid, emptySketch, migrateSketch, pointPos, getCurve, curveGeom, sketchGeom, sampleGeom,
-  distToGeom, closestOnGeom, intersect, normAng, VIRTUAL_LINES,
+  distToGeom, closestOnGeom, intersect, normAng, VIRTUAL_LINES, curvePointIds, ellipseLocal, ellipsePoint,
 } from './sketch/model.js';
 import { solveSketch } from './sketch/solver.js';
 import { splineSamples, fitPointLengths, splineCrossings, trimSplinePieces, splineSide, offsetSplinePoints } from './sketch/splineops.js';
@@ -22,7 +22,7 @@ const fmt = (x) => (Math.round(x * 1000) / 1000).toString();
 
 const CREATE_TOOLS = [
   ['line', 'Line', 'line', 'L'], ['rect', 'Rectangle', 'rect', 'R'], ['crect', 'Center Rect', 'crect', ''],
-  ['circle', 'Circle', 'circle', 'C'], ['arc3', '3-Point Arc', 'arc', 'A'], ['arcc', 'Center Arc', 'arcc', ''],
+  ['circle', 'Circle', 'circle', 'C'], ['arc3', '3-Point Arc', 'arc', 'A'], ['arcc', 'Center Arc', 'arcc', ''], ['ellipse', 'Ellipse', 'ellipse', 'E'],
   ['polygon', 'Polygon', 'polygon', 'P'], ['slot', 'Slot', 'slot', ''], ['spline', 'Spline', 'spline', ''], ['point', 'Point', 'point', ''],
 ];
 const MODIFY_TOOLS = [
@@ -42,8 +42,14 @@ GLYPH.pointOnCurve = '⦾';
 const DIMS = {
   line: [['L', 'Length'], ['A', 'Angle']], rect: [['W', 'Width'], ['H', 'Height']], crect: [['W', 'Width'], ['H', 'Height']],
   circle: [['D', 'Diameter']], polygon: [['R', 'Radius'], ['N', 'Sides']], slot: [['L', 'Length'], ['W', 'Width']],
-  fillet: [['R', 'Radius']], offset: [['D', 'Distance']], arcc: [['R', 'Radius']],
+  fillet: [['R', 'Radius']], offset: [['D', 'Distance']], arcc: [['R', 'Radius']], ellipse: [['A', 'Major axis'], ['B', 'Minor axis']],
 };
+// the minor radius that puts point p on an ellipse with centre c and major axis end a
+function ellipseMinorThrough(c, a, p) {
+  const rx = d2(c, a) || 1e-9, [x, y] = ellipseLocal({ c, rot: Math.atan2(a[1] - c[1], a[0] - c[0]) }, p);
+  const k = 1 - (x / rx) ** 2;
+  return Math.max(1e-3, k > 0.01 ? Math.abs(y) / Math.sqrt(k) : Math.abs(y));
+}
 
 export class Sketcher {
   constructor(vp, ui) {
@@ -166,7 +172,7 @@ export class Sketcher {
     const sk = this.sk;
     const pts = new Set(sk.points.map((p) => p.id));
     const exists = (id) => pts.has(id) || id === 'O' || id === 'OX' || id === 'OY';
-    sk.curves = sk.curves.filter((c) => (c.type === 'line' ? exists(c.a) && exists(c.b) : c.type === 'circle' ? exists(c.c) : c.type === 'arc' ? exists(c.c) && exists(c.a) && exists(c.b) : c.pts.every(exists)));
+    sk.curves = sk.curves.filter((c) => curvePointIds(c).every(exists));
     const curves = new Set([...sk.curves.map((c) => c.id), 'AX', 'AY']);
     const refOk = (k) => ['a', 'b', 'p'].every((f) => !k[f] || exists(k[f])) && ['line', 'curve', 'l1', 'l2', 'c1', 'c2'].every((f) => !k[f] || curves.has(k[f]));
     sk.constraints = sk.constraints.filter(refOk);
@@ -320,8 +326,13 @@ export class Sketcher {
         const live = this.sk.curves.find((x) => x.id === c.id);
         if (live && ctr) live.r = Math.max(1e-3, d2(p, this.P(c.c)));
         drag = [];
+      } else if (c.type === 'ellipse') {
+        // dragging the rim changes the minor radius
+        const live = this.sk.curves.find((x) => x.id === c.id);
+        if (live) live.rb = ellipseMinorThrough(this.P(c.c), this.P(c.a), p);
+        drag = [];
       } else {
-        const ids = c.type === 'line' ? [c.a, c.b] : c.type === 'arc' ? [c.c, c.a, c.b] : c.pts;
+        const ids = curvePointIds(c);
         drag = ids.map((id) => ({ point: id, target: add2(origPos(id), delta) })).filter((d) => d.target);
       }
     }
@@ -389,7 +400,7 @@ export class Sketcher {
       if (inp) { inp.focus(); inp.value = ''; }
       return false;
     }
-    const map = { l: 'line', r: 'rect', c: 'circle', a: 'arc3', p: 'polygon', d: 'dim', t: 'trim', o: 'offset', f: 'fillet', s: 'slot' };
+    const map = { l: 'line', r: 'rect', c: 'circle', a: 'arc3', p: 'polygon', d: 'dim', t: 'trim', o: 'offset', f: 'fillet', s: 'slot', e: 'ellipse' };
     if (map[k.toLowerCase()]) { this.setTool(map[k.toLowerCase()]); return true; }
     if (k.toLowerCase() === 'x') { this.toggleConstruction(); return true; }
     return false;
@@ -499,7 +510,7 @@ export class Sketcher {
     }
     ch.pts.push(s);
     const n = ch.pts.length;
-    if ((['rect', 'crect', 'circle', 'polygon'].includes(t) && n === 2) || (['slot', 'arc3', 'arcc'].includes(t) && n === 3)) {
+    if ((['rect', 'crect', 'circle', 'polygon'].includes(t) && n === 2) || (['slot', 'arc3', 'arcc', 'ellipse'].includes(t) && n === 3)) {
       const pts = ch.pts;
       this.chain = null;
       this._hideHud();
@@ -593,6 +604,13 @@ export class Sketcher {
         const pa = this.pointFor(s0, sk), pb = this.pointFor(s1, sk);
         const cid = this.addPoint(c);
         this.addCurve(sm < sw ? { type: 'arc', c: cid, a: pa, b: pb } : { type: 'arc', c: cid, a: pb, b: pa });
+      } else if (t === 'ellipse') {
+        if (d2(s0.p, s1.p) < 1e-9) return;
+        const c = this.pointFor(s0, sk), a = this.pointFor(s1, sk);
+        const eid = this.addCurve({ type: 'ellipse', c, a, rb: ellipseMinorThrough(s0.p, s1.p, s2.p) });
+        // the major axis as a construction line, so it can be made horizontal, dimensioned or used to mirror
+        this.addCurve({ type: 'line', a: c, b: a, construction: true });
+        if (s2.point) this.addCon('pointOnCurve', { p: s2.point, curve: eid });
       } else if (t === 'arcc') {
         const r = d2(s0.p, s1.p);
         if (r < 1e-9) return;
@@ -626,6 +644,7 @@ export class Sketcher {
     const cs = picks.filter((h) => h.kind === 'curve').map((h) => ({ id: h.id, c: getCurve(this.sk, h.id) }));
     const lines = cs.filter((c) => c.c?.type === 'line').map((c) => c.id);
     const rounds = cs.filter((c) => c.c && (c.c.type === 'circle' || c.c.type === 'arc')).map((c) => c.id);
+    const ells = cs.filter((c) => c.c?.type === 'ellipse').map((c) => c.id);
     let k = null;
     const n = picks.length;
     switch (type) {
@@ -642,7 +661,10 @@ export class Sketcher {
         if (lines.length === 2) k = { type, l1: lines[0], l2: lines[1] };
         break;
       case 'tangent':
-        if (cs.length === 2 && rounds.length >= 1) {
+        if (cs.length === 2 && ells.length) {
+          if (ells.length === 1 && lines.length === 1) k = { type, c1: lines[0], c2: ells[0] };
+          else { this.ui.toast('An ellipse can be tangent to a line'); return true; }
+        } else if (cs.length === 2 && rounds.length >= 1) {
           const [a, b] = cs;
           k = { type, c1: a.id, c2: b.id };
           if (rounds.length === 2) {
@@ -655,7 +677,7 @@ export class Sketcher {
         if (lines.length === 2 || rounds.length === 2) k = { type, c1: cs[0].id, c2: cs[1].id };
         break;
       case 'concentric':
-        if (rounds.length === 2) k = { type, c1: rounds[0], c2: rounds[1] };
+        if (rounds.length + ells.length === 2) k = { type, c1: [...rounds, ...ells][0], c2: [...rounds, ...ells][1] };
         break;
       case 'midpoint':
         if (pts.length === 1 && lines.length === 1) k = { type, p: pts[0], line: lines[0] };
@@ -703,9 +725,14 @@ export class Sketcher {
       if (ka === 'line') { const c = getCurve(this.sk, A.id); return this._pointPointDim(dim, c.a, c.b, cursor, true); }
       if (ka === 'circle') return { ...dim, type: 'diameter', curve: A.id };
       if (ka === 'arc') return { ...dim, type: 'radius', curve: A.id };
+      if (ka === 'ellipse') {
+        // the axis nearer the label: past the ends of the major axis gives major, otherwise minor
+        const g = this.geomOf(A.id), [x, y] = ellipseLocal(g, cursor);
+        return { ...dim, type: 'axis', curve: A.id, which: Math.abs(x) / g.rx > Math.abs(y) / g.ry ? 'major' : 'minor' };
+      }
       return null;
     }
-    const asPoint = (h, k) => (k === 'point' ? h.id : k === 'circle' || k === 'arc' ? centerOf(h) : null);
+    const asPoint = (h, k) => (k === 'point' ? h.id : k === 'circle' || k === 'arc' || k === 'ellipse' ? centerOf(h) : null);
     if (ka === 'line' && kb === 'line') {
       const g1 = this.geomOf(A.id), g2 = this.geomOf(B.id);
       const u = unit2(sub2(g1.b, g1.a)), v = unit2(sub2(g2.b, g2.a));
@@ -751,6 +778,7 @@ export class Sketcher {
       case 'vdist': return (d.sign || 1) * (P(d.b)[1] - P(d.a)[1]);
       case 'radius': return G(d.curve).r;
       case 'diameter': return 2 * G(d.curve).r;
+      case 'axis': { const g = G(d.curve); return 2 * (d.which === 'minor' ? g.ry : g.rx); }
       case 'pointLine': { const g = G(d.line); return distToLineInf(P(d.p), g.a, g.b); }
       case 'lineDist': { const g1 = G(d.l1), g2 = G(d.l2); return distToLineInf(g2.a, g1.a, g1.b); }
       case 'angle': {
@@ -770,7 +798,7 @@ export class Sketcher {
       switch (d.type) {
         case 'distance': case 'hdist': case 'vdist': { const a = P(d.a), b = P(d.b); return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; }
         case 'length': { const g = d.line ? G(d.line) : { a: P(d.a), b: P(d.b) }; return [(g.a[0] + g.b[0]) / 2, (g.a[1] + g.b[1]) / 2]; }
-        case 'radius': case 'diameter': return G(d.curve).c;
+        case 'radius': case 'diameter': case 'axis': return G(d.curve).c;
         case 'pointLine': { const g = G(d.line), q = P(d.p); const f = footInf(q, g.a, g.b); return [(q[0] + f[0]) / 2, (q[1] + f[1]) / 2]; }
         case 'lineDist': { const g1 = G(d.l1), g2 = G(d.l2); const f = footInf(g2.a, g1.a, g1.b); return [(g2.a[0] + f[0]) / 2, (g2.a[1] + f[1]) / 2]; }
         case 'angle': { const g1 = G(d.l1), g2 = G(d.l2); return lineIntersect(g1, g2) || g1.a; }
@@ -839,6 +867,7 @@ export class Sketcher {
     const c = getCurve(this.sk, h.id);
     const g = this.geomOf(h.id);
     if (c.type === 'spline') return this._trimSpline(c, g, p);
+    if (c.type === 'ellipse') return this.ui.toast('Ellipses cannot be trimmed. Cut them with a profile instead');
     // intersection parameters with every other curve
     const others = this.sk.curves.filter((o) => o.id !== c.id).map((o) => ({ o, g: curveGeom(this.sk, o) })).filter((x) => x.g && x.g.type !== 'spline');
     const hits = [];
@@ -965,6 +994,19 @@ export class Sketcher {
       this.commitChange(() => this.addCurve({ type: 'circle', c: c0.c, r }));
       return;
     }
+    if (c0.type === 'ellipse') {
+      // the offset of an ellipse is not an ellipse: it becomes a closed spline through 48 exact offset points
+      const g = this.geomOf(c0.id), [x, y] = ellipseLocal(g, this.cursorRaw || p);
+      const out = Math.hypot(x / g.rx, y / g.ry) > 1 ? 1 : -1;
+      if (out < 0 && D >= Math.min(g.rx, g.ry)) return this.ui.toast('Offset is larger than the minor radius');
+      const pts = Array.from({ length: 48 }, (_, i) => {
+        const t = (i / 48) * TAU, q = ellipsePoint(g, t);
+        const cr = Math.cos(g.rot), sr = Math.sin(g.rot), nx = g.ry * Math.cos(t), ny = g.rx * Math.sin(t), L = Math.hypot(nx, ny);
+        return [q[0] + (out * D * (nx * cr - ny * sr)) / L, q[1] + (out * D * (nx * sr + ny * cr)) / L];
+      });
+      this.commitChange(() => { const ids = pts.map((xy) => this.addPoint(xy)); this.addCurve({ type: 'spline', pts: ids, closed: true }); });
+      return;
+    }
     if (c0.type === 'spline') {
       const g = this.geomOf(c0.id);
       const side = splineSide(splineSamples(g, 16), this.cursorRaw || p);
@@ -1064,6 +1106,7 @@ export class Sketcher {
         else if (c.type === 'circle') this.addCurve({ type: 'circle', c: mp(c.c), r: c.r, construction: c.construction });
         else if (c.type === 'arc') this.addCurve({ type: 'arc', c: mp(c.c), a: mp(c.b), b: mp(c.a), construction: c.construction });
         else if (c.type === 'spline') this.addCurve({ type: 'spline', pts: c.pts.map(mp), closed: c.closed });
+        else if (c.type === 'ellipse') this.addCurve({ type: 'ellipse', c: mp(c.c), a: mp(c.a), rb: c.rb, construction: c.construction });
       }
     });
     this.sel.clear();
@@ -1180,6 +1223,27 @@ export class Sketcher {
       }
       return this._blurHud();
     }
+    if (t === 'ellipse') {
+      // A (full major axis) then B (full minor axis)
+      const n0 = ch.pts.length;
+      if (n0 === 1) {
+        const ang = Math.atan2(cur[1] - first[1], cur[0] - first[0]);
+        const R = v.A !== undefined ? v.A / 2 : d2(cur, first);
+        ch.typedA = v.A;
+        this._drawClick({ p: [first[0] + R * Math.cos(ang), first[1] + R * Math.sin(ang)] });
+      }
+      if (n0 === 2 || v.B !== undefined) {
+        const A = ch.pts[1].p, d = unit2(sub2(A, first)), typedA = ch.typedA ?? v.A;
+        const rb = v.B !== undefined ? v.B / 2 : ellipseMinorThrough(first, A, cur);
+        this._drawClick({ p: add2(first, mul2([-d[1], d[0]], rb)) });
+        const eid = this.sk.curves.filter((x) => x.type === 'ellipse').at(-1)?.id;
+        if (eid && (typedA !== undefined || v.B !== undefined)) this.commitChange((sk) => {
+          if (typedA !== undefined) sk.dims.push({ id: uid('d'), type: 'axis', curve: eid, which: 'major', expr: this._ex(typedA), off: [0, -rb - this.px() * 24] });
+          if (v.B !== undefined) sk.dims.push({ id: uid('d'), type: 'axis', curve: eid, which: 'minor', expr: this._ex(v.B), off: [d2(first, A) + this.px() * 24, 0] });
+        });
+      }
+      return this._blurHud();
+    }
     if (t === 'arcc' && ch.pts.length === 1 && v.R) {
       const ang = Math.atan2(cur[1] - first[1], cur[0] - first[0]);
       this._drawClick({ p: [first[0] + v.R * Math.cos(ang), first[1] + v.R * Math.sin(ang)] });
@@ -1222,6 +1286,10 @@ export class Sketcher {
       case 'crect': return { W: fmt(2 * Math.abs(c[0] - a[0])), H: fmt(2 * Math.abs(c[1] - a[1])) };
       case 'circle': return { D: fmt(2 * d2(c, a)) };
       case 'arcc': return { R: fmt(d2(c, a)) };
+      case 'ellipse': {
+        const C = this.chain.pts[0].p;
+        return this.chain.pts.length === 1 ? { A: fmt(2 * d2(c, C)) } : { A: fmt(2 * d2(this.chain.pts[1].p, C)), B: fmt(2 * ellipseMinorThrough(C, this.chain.pts[1].p, c)) };
+      }
       case 'slot': return this.chain.pts.length === 1 ? { L: fmt(d2(c, a)) } : {};
     }
     return {};
@@ -1290,7 +1358,7 @@ export class Sketcher {
     if (this.picks.some((h) => h.kind === 'curve' && h.id === c.id)) return COLORS.select;
     if (c.projected) return COLORS.skFixed;
     if (c.construction) return COLORS.skConstr;
-    const det = this.status && (c.type === 'line' ? [c.a, c.b] : c.type === 'circle' ? [c.c] : c.type === 'arc' ? [c.c, c.a, c.b] : c.pts).every((id) => this.status.pointDetermined(id)) && (c.type !== 'circle' || this.status.radiusDetermined(c.id));
+    const det = this.status && curvePointIds(c).every((id) => this.status.pointDetermined(id)) && ((c.type !== 'circle' && c.type !== 'ellipse') || this.status.radiusDetermined(c.id));
     return det ? COLORS.skFull : COLORS.skFree;
   }
 
@@ -1397,6 +1465,15 @@ export class Sketcher {
           if (cc) g.add(this._line(arcThrough(cc, pts[0].p, pts[1].p, c), prev));
         }
       }
+      if (t === 'ellipse' && pts.length) {
+        const C = pts[0].p;
+        if (pts.length === 1) g.add(this._line([[2 * C[0] - c[0], 2 * C[1] - c[1]], c], prev, { dashed: true }));
+        else {
+          const A = pts[1].p;
+          const e = { c: C, rx: d2(C, A), ry: ellipseMinorThrough(C, A, c), rot: Math.atan2(A[1] - C[1], A[0] - C[0]) };
+          g.add(this._line(sampleGeom({ type: 'ellipse', ...e }, 96), prev), this._line([[2 * C[0] - A[0], 2 * C[1] - A[1]], A], prev, { dashed: true }));
+        }
+      }
       if (t === 'arcc' && pts.length) {
         const C = pts[0].p;
         if (pts.length === 1) g.add(this._line([C, c], prev, { dashed: true }));
@@ -1446,6 +1523,17 @@ export class Sketcher {
         g.add(this._line([A, a2], color), this._line([B, b2], color), this._line([a2, b2], color));
         const dd = unit2(sub2(b2, a2));
         if (d2(a2, b2) > 1e-9) g.add(arrow(a2, mul2(dd, -1)), arrow(b2, dd));
+      } else if (d.type === 'axis') {
+        // an aligned dimension between the two ends of the axis
+        const ge = G(d.curve), t = d.which === 'minor' ? Math.PI / 2 : 0;
+        const A = ellipsePoint(ge, t), B = ellipsePoint(ge, t + Math.PI);
+        const dir = unit2(sub2(B, A)), n = [-dir[1], dir[0]];
+        const h = (L[0] - A[0]) * n[0] + (L[1] - A[1]) * n[1];
+        const a2 = add2(A, mul2(n, h)), b2 = add2(B, mul2(n, h));
+        // the dimension line runs on to the label when it sits beyond either end
+        const s = (L[0] - a2[0]) * dir[0] + (L[1] - a2[1]) * dir[1], len = d2(a2, b2);
+        const e0 = s < 0 ? add2(a2, mul2(dir, s)) : a2, e1 = s > len ? add2(a2, mul2(dir, s)) : b2;
+        g.add(this._line([A, a2], color), this._line([B, b2], color), this._line([e0, e1], color), arrow(a2, mul2(dir, -1)), arrow(b2, dir));
       } else if (d.type === 'radius' || d.type === 'diameter') {
         const gc = G(d.curve);
         const dir = unit2(sub2(L, gc.c));

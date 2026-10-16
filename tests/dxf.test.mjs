@@ -49,13 +49,15 @@ check('block insert: scale 2 and 90° rotation, in mm', ln && near(ln.a[0], 25.4
 const a2 = prims.find((p) => p.t === 'arc');
 check('arc converted to mm with radians', a2 && near(a2.r, 25.4) && near(a2.a1, Math.PI / 2));
 
-// SPLINE by fit points and ELLIPSE become sketch splines
+// SPLINE by fit points becomes a sketch spline; a whole ELLIPSE stays an exact ellipse, a partial one a spline
 const spl = dxf([], [
   '0', 'SPLINE', '8', '0', '70', '8', '71', '3', '11', '0', '21', '0', '11', '10', '21', '5', '11', '20', '21', '0',
   '0', 'ELLIPSE', '8', '0', '10', '0', '20', '0', '11', '10', '21', '0', '40', '0.5', '41', '0', '42', '6.283185307',
 ]);
 ({ prims } = dxfPrimitives(parseDXF(spl), 1));
-check('spline (fit points) and full ellipse', prims.filter((p) => p.t === 'spline').length === 2 && prims[1].closed === true);
+check('spline (fit points) and full ellipse', prims.length === 2 && prims[0].t === 'spline' && prims[1].t === 'ellipse' && near(prims[1].a[0], 10) && near(prims[1].rb, 5));
+const half = dxf([], ['0', 'ELLIPSE', '8', '0', '10', '0', '20', '0', '11', '10', '21', '0', '40', '0.5', '41', '0', '42', '3.14159265']);
+check('a partial ellipse is an open spline', dxfPrimitives(parseDXF(half), 1).prims[0].t === 'spline' && !dxfPrimitives(parseDXF(half), 1).prims[0].closed);
 
 // ---------- export: top face of a 40 × 30 plate with a Ø8 hole ----------
 r = await rebuild([

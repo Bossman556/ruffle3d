@@ -697,3 +697,14 @@ svg.dw-sheet.placing { cursor: crosshair; }
 .script-line.err { color: var(--danger); }
 .script-line.warn { color: var(--warn); }
 .script-line.ok { color: var(--ok); }
+
+/* drawing sheet tabs */
+.dw-tabs { display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: var(--bg1); border-top: 1px solid var(--line); overflow-x: auto; }
+.dw-tab { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--r-sm); background: none; color: var(--text2); font-size: 12.5px; white-space: nowrap; cursor: pointer; }
+.dw-tab svg { width: 14px; height: 14px; }
+.dw-tab:hover { background: var(--bg3); color: var(--text); }
+.dw-tab.on { background: var(--bg0); border-color: var(--line2); color: var(--text); font-weight: 600; }
+.dw-tab i { display: flex; opacity: .55; margin-right: -4px; }
+.dw-tab i:hover { opacity: 1; color: var(--danger); }
+.dw-tab.add { color: var(--accent); }
+.dw-tabs .spacer { flex: 1; }

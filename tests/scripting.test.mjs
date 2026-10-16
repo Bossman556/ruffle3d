@@ -12,6 +12,8 @@ const P = (id) => s.points.find((q) => q.id === id);
 const arcs = s.curves.filter((c) => c.type === 'arc'), lines = s.curves.filter((c) => c.type === 'line');
 check('a slot is two lines and two arcs joined end to end', arcs.length === 2 && lines.length === 2 && s.points.length === 6, `${s.points.length} points`);
 check('the slot is 20 wide', lines.every((l) => Math.abs(Math.abs(P(l.a).y) - 10) < 1e-9 && Math.abs(Math.abs(P(l.b).y) - 10) < 1e-9));
+const el = sketchBuilder().ellipse(5, 0, 20, 8, 90).data();
+check('an ellipse stores its centre, major axis end and minor radius', el.curves[0].type === 'ellipse' && el.curves[0].rb === 8 && Math.abs(el.points[1].x - 5) < 1e-9 && Math.abs(el.points[1].y - 20) < 1e-9);
 const poly = sketchBuilder().polygon(0, 0, 10, 6).data();
 check('a hexagon closes on itself', poly.curves.length === 6 && poly.points.length === 6);
 

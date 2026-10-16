@@ -4,32 +4,36 @@
 // 3. Bounded faces (positive area) are regions; each connected component's outer boundary becomes a
 //    hole of the smallest region of another component that contains it. Nesting depth gives the
 //    default "even-odd" profile selection.
-import { intersect, closestOnGeom, distToGeom, bezPoint, normAng } from './model.js';
+import { intersect, closestOnGeom, distToGeom, bezPoint, normAng, ellipsePoint } from './model.js';
 
 const TAU = Math.PI * 2;
 
 function pieceFrom(piece) {
   if (piece.type === 'line') return piece.a;
   if (piece.type === 'arc') return [piece.c[0] + piece.r * Math.cos(piece.s), piece.c[1] + piece.r * Math.sin(piece.s)];
+  if (piece.type === 'ell') return ellipsePoint(piece, piece.s);
   return piece.b[0];
 }
 function pieceTo(piece) {
   if (piece.type === 'line') return piece.b;
   if (piece.type === 'arc') { const e = piece.s + piece.sw; return [piece.c[0] + piece.r * Math.cos(e), piece.c[1] + piece.r * Math.sin(e)]; }
+  if (piece.type === 'ell') return ellipsePoint(piece, piece.s + piece.sw);
   return piece.b[3];
 }
 export function pieceAt(piece, t) {
   if (piece.type === 'line') return [piece.a[0] + (piece.b[0] - piece.a[0]) * t, piece.a[1] + (piece.b[1] - piece.a[1]) * t];
   if (piece.type === 'arc') { const a = piece.s + piece.sw * t; return [piece.c[0] + piece.r * Math.cos(a), piece.c[1] + piece.r * Math.sin(a)]; }
+  if (piece.type === 'ell') return ellipsePoint(piece, piece.s + piece.sw * t);
   return bezPoint(piece.b, t);
 }
 export function reversePiece(p) {
   if (p.type === 'line') return { type: 'line', a: p.b, b: p.a };
   if (p.type === 'arc') return { type: 'arc', c: p.c, r: p.r, s: p.s + p.sw, sw: -p.sw };
+  if (p.type === 'ell') return { ...p, s: p.s + p.sw, sw: -p.sw };
   return { type: 'bez', b: [p.b[3], p.b[2], p.b[1], p.b[0]] };
 }
 function samplePiece(p, n) {
-  const k = p.type === 'line' ? 1 : n ?? Math.max(4, Math.ceil(Math.abs(p.sw || 1) * 12));
+  const k = p.type === 'line' ? 1 : n ?? (p.type === 'ell' ? 48 : Math.max(4, Math.ceil(Math.abs(p.sw || 1) * 12)));
   const out = [];
   for (let i = 0; i <= k; i++) out.push(pieceAt(p, i / k));
   return out;
@@ -55,7 +59,7 @@ export function computeRegions(geoms) {
   if (!gs.length) return [];
   // scale-aware tolerance
   let ext = 1;
-  for (const g of gs) for (const p of g.type === 'line' ? [g.a, g.b] : g.type === 'spline' ? g.pts : [g.c]) ext = Math.max(ext, Math.abs(p[0]), Math.abs(p[1]), g.r || 0);
+  for (const g of gs) for (const p of g.type === 'line' ? [g.a, g.b] : g.type === 'spline' ? g.pts : [g.c]) ext = Math.max(ext, Math.abs(p[0]), Math.abs(p[1]), g.r || g.rx || 0);
   const tol = ext * 1e-7 + 1e-9;
 
   // ---- split parameters per splittable curve ----
@@ -88,7 +92,11 @@ export function computeRegions(geoms) {
   const pieces = [];
   for (const g of splittable) {
     const raw = params.get(g);
-    if (g.type === 'line') {
+    if (g.type === 'ellipse') {
+      // split at every crossing, and at least at the quarters (the kernel draws elliptical arcs under half a turn)
+      const ts = [...new Set([0, TAU, Math.PI / 2, Math.PI, (3 * Math.PI) / 2, ...raw])].filter((t) => t >= 0 && t <= TAU).sort((a, b) => a - b);
+      for (let i = 0; i < ts.length - 1; i++) if (ts[i + 1] - ts[i] > 1e-9) pieces.push({ type: 'ell', c: g.c, rx: g.rx, ry: g.ry, rot: g.rot, s: ts[i], sw: ts[i + 1] - ts[i] });
+    } else if (g.type === 'line') {
       const ts = [...new Set([0, 1, ...raw].map((t) => Math.max(0, Math.min(1, t))))].sort((a, b) => a - b);
       for (let i = 0; i < ts.length - 1; i++) {
         if (ts[i + 1] - ts[i] < 1e-9) continue;

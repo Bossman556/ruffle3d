@@ -292,6 +292,27 @@ export const FEATURES = {
       { key: 'flip', label: 'Start from other end', type: 'check', default: false },
     ],
   },
+  wrap: {
+    label: 'Wrap / Emboss', icon: 'wrap', group: 'create',
+    fields: [
+      { key: 'face', label: 'Face', type: 'face1', hint: 'Click a cylindrical or flat face where the sketch origin goes' },
+      { key: 'sketch', label: 'Sketch', type: 'sketch', hint: 'Closed shapes: a logo, a label, a grip pattern' },
+      { key: 'profiles', label: 'Profiles', type: 'regions', of: 'sketch' },
+      { key: 'height', label: 'Height', type: 'number', default: '1', unit: 'mm' },
+      { key: 'mode', label: 'Type', type: 'select', options: [['emboss', 'Emboss (raised)'], ['deboss', 'Deboss (cut in)']], default: 'emboss' },
+      { key: 'rotate', label: 'Rotate', type: 'number', default: '0', unit: '°' },
+    ],
+  },
+  rib: {
+    label: 'Rib', icon: 'rib', group: 'create',
+    fields: [
+      { key: 'sketch', label: 'Rib sketch', type: 'sketch', hint: 'Open lines on a plane through the part' },
+      { key: 'body', label: 'Body', type: 'body' },
+      { key: 'thickness', label: 'Thickness', type: 'number', default: '3', unit: 'mm' },
+      { key: 'thick', label: 'Thickness side', type: 'select', options: [['mid', 'Symmetric'], ['front', 'Front of sketch'], ['back', 'Back of sketch']], default: 'mid' },
+      { key: 'side', label: 'Fill side', type: 'select', options: [['auto', 'Automatic'], ['flip', 'Other side']], default: 'auto' },
+    ],
+  },
   coil: {
     label: 'Coil', icon: 'coil', group: 'create',
     fields: [
