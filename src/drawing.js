@@ -11,7 +11,8 @@ const SCALES = [10, 5, 4, 2, 1, 1 / 2, 1 / 2.5, 1 / 4, 1 / 5, 1 / 10, 1 / 20, 1 
 const scaleLabel = (s) => (s >= 1 ? `${s}:1` : `1:${+(1 / s).toFixed(1)}`);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const f1 = (x) => (Math.round(x * 100) / 100).toString();
-const DEFAULT_OPTS = { sheet: 'A3', scale: 'auto', hidden: true, iso: true, dims: true, section: 'none', sectionAt: 50, parts: true, balloons: true, holes: true };
+const DEFAULT_OPTS = { sheet: 'A3', scale: 'auto', hidden: true, iso: true, dims: true, section: 'none', sectionAt: 50, parts: true, balloons: true, holes: true, left: false, bottom: false, back: false };
+const EXTRA_VIEWS = [['left', 'Left'], ['bottom', 'Bottom'], ['back', 'Back']];
 
 export class DrawingWorkspace {
   constructor(app) {
@@ -67,7 +68,7 @@ export class DrawingWorkspace {
   async fetch() {
     const o = this.opts;
     const section = o.section === 'none' ? null : { axis: o.section, at: o.sectionAt / 100 };
-    this.data = await this.app.kernel.drawing(this.ids, ['front', 'top', 'right', 'iso'], section);
+    this.data = await this.app.kernel.drawing(this.ids, ['front', 'top', 'right', 'iso', ...EXTRA_VIEWS.map(([k]) => k).filter((k) => o[k])], section);
     const sv = this.data.views.find((v) => v.view === 'section');
     if (sv?.error) this.app.toast(`Section view: ${sv.error}`, 'warn');
     // snap points, lines and circles of each view, in the view's own coordinates
@@ -97,6 +98,7 @@ export class DrawingWorkspace {
         <label>Scale <select data-o="scale"><option value="auto">Auto</option>${SCALES.map((s) => `<option value="${s}" ${String(s) === String(o.scale) ? 'selected' : ''}>${scaleLabel(s)}</option>`).join('')}</select></label>
         <label><input type="checkbox" data-o="hidden" ${o.hidden ? 'checked' : ''}> Hidden lines</label>
         <label><input type="checkbox" data-o="iso" ${o.iso ? 'checked' : ''}> Isometric view</label>
+        <label>Views <span class="dw-views">${EXTRA_VIEWS.map(([k, l]) => `<label data-tip="Add the ${l.toLowerCase()} view"><input type="checkbox" data-o="${k}" ${o[k] ? 'checked' : ''}> ${l}</label>`).join('')}</span></label>
         <label><input type="checkbox" data-o="dims" ${o.dims ? 'checked' : ''}> Dimensions</label>
         <label>Section <select data-o="section"><option value="none" ${o.section === 'none' ? 'selected' : ''}>None</option><option value="Y" ${o.section === 'Y' ? 'selected' : ''}>A–A (front)</option><option value="X" ${o.section === 'X' ? 'selected' : ''}>B–B (side)</option></select></label>
         ${o.section !== 'none' ? `<label>at <input type="range" min="1" max="99" step="1" value="${o.sectionAt}" data-o="sectionAt" style="width:90px"> <span data-sa>${o.sectionAt}%</span></label>` : ''}
@@ -136,7 +138,7 @@ export class DrawingWorkspace {
       const k = inp.dataset.o;
       o[k] = inp.type === 'checkbox' ? inp.checked : inp.type === 'range' ? +inp.value : inp.value;
       this.app.scheduleSave();
-      if (k === 'section' || k === 'sectionAt') {
+      if (k === 'section' || k === 'sectionAt' || EXTRA_VIEWS.some(([v]) => v === k)) {
         this.el.querySelector('.dw-canvas').style.opacity = 0.5;
         try { await this.fetch(); } catch (e) { this.app.toast(e.message, 'warn'); }
       }
@@ -213,21 +215,28 @@ export class DrawingWorkspace {
     const views = Object.fromEntries(this.data.views.map((v) => [v.view, v]));
     const size = (v) => (v?.bbox ? [v.bbox[1][0] - v.bbox[0][0], v.bbox[1][1] - v.bbox[0][1]] : [0, 0]);
     const [fw, fh] = size(views.front), [, th] = size(views.top), [rw] = size(views.right);
+    // optional third-angle views: left of the front view, below it, and the back view beyond the right view
+    const lv = o.left && views.left?.bbox ? views.left : null, bv = o.bottom && views.bottom?.bbox ? views.bottom : null, kv = o.back && views.back?.bbox ? views.back : null;
+    const [lw] = size(lv), [, bh] = size(bv), [kw] = size(kv);
     const [iw, ih] = size(views.iso);
     const sec = o.section !== 'none' && views.section?.bbox ? views.section : null;
     const [sw] = size(sec);
     const margin = 10, gap = 22, tbH = 34;
-    const aw = W - 2 * margin - gap * (sec ? 3 : 2) - 10, ah = H - 2 * margin - tbH - gap * 2;
-    const fit = Math.min(aw / (fw + rw + sw || 1), ah / (th + fh || 1));
+    const nCols = 2 + (sec ? 1 : 0) + (lv ? 1 : 0) + (kv ? 1 : 0);
+    const aw = W - 2 * margin - gap * nCols - 10, ah = H - 2 * margin - tbH - gap * (bv ? 3 : 2);
+    const fit = Math.min(aw / (fw + rw + sw + lw + kw || 1), ah / (th + fh + bh || 1));
     const s = o.scale === 'auto' ? SCALES.find((k) => k <= fit) || SCALES[SCALES.length - 1] : +o.scale;
     // third-angle arrangement: top above front, right view to the right of front
-    const x0 = margin + gap + 6, y0 = margin + gap;
+    const x0 = margin + gap + 6 + (lv ? lw * s + gap : 0), y0 = margin + gap;
     const pos = {
       top: [x0, y0],
       front: [x0, y0 + th * s + gap],
       right: [x0 + fw * s + gap, y0 + th * s + gap],
     };
     if (sec) pos.section = [x0 + fw * s + rw * s + gap * 2, y0 + th * s + gap];
+    if (lv) pos.left = [x0 - gap - lw * s, y0 + th * s + gap];
+    if (bv) pos.bottom = [x0, y0 + th * s + gap + fh * s + gap + 6];
+    if (kv) pos.back = [x0 + fw * s + rw * s + (sec ? sw * s + gap : 0) + gap * 2, y0 + th * s + gap];
     // isometric in the top-right cell, scaled to fit the remaining space
     const isoBox = [x0 + fw * s + gap, y0, W - margin - 8 - (x0 + fw * s + gap), Math.max(th * s + gap * 0.5, 40)];
     const isoScale = Math.min(isoBox[2] / (iw || 1), isoBox[3] / (ih || 1), s);
@@ -407,6 +416,7 @@ export class DrawingWorkspace {
       <rect x="${margin}" y="${margin}" width="${W - 2 * margin}" height="${H - 2 * margin}" fill="none" stroke="#111" stroke-width="0.5"/>
       ${viewSVG('top', 'TOP')}${viewSVG('front', 'FRONT')}${viewSVG('right', 'RIGHT')}${o.iso ? viewSVG('iso', 'ISOMETRIC', isoScale) : ''}
       ${sec ? viewSVG('section', `SECTION ${sec.axis === 'Y' ? 'A–A' : 'B–B'}`) : ''}
+      ${lv ? viewSVG('left', 'LEFT') : ''}${bv ? viewSVG('bottom', 'BOTTOM') : ''}${kv ? viewSVG('back', 'BACK') : ''}
       <g stroke="#111" fill="none">${cutLine}</g>
       <g stroke="#111" fill="none">${holeMarks}</g>${holeTable}
       <g stroke="#111" stroke-width="0.25" fill="none">${dims}</g>

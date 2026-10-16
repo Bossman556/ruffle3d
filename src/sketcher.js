@@ -22,12 +22,12 @@ const fmt = (x) => (Math.round(x * 1000) / 1000).toString();
 
 const CREATE_TOOLS = [
   ['line', 'Line', 'line', 'L'], ['rect', 'Rectangle', 'rect', 'R'], ['crect', 'Center Rect', 'crect', ''],
-  ['circle', 'Circle', 'circle', 'C'], ['arc3', '3-Point Arc', 'arc', 'A'], ['arcc', 'Center Arc', 'arcc', ''], ['ellipse', 'Ellipse', 'ellipse', 'E'],
+  ['circle', 'Circle', 'circle', 'C'], ['circle3', '3-Point Circle', 'circle3', ''], ['arc3', '3-Point Arc', 'arc', 'A'], ['arcc', 'Center Arc', 'arcc', ''], ['ellipse', 'Ellipse', 'ellipse', 'E'],
   ['polygon', 'Polygon', 'polygon', 'P'], ['slot', 'Slot', 'slot', ''], ['spline', 'Spline', 'spline', ''], ['point', 'Point', 'point', ''],
 ];
 const MODIFY_TOOLS = [
   ['dim', 'Dimension', 'dim', 'D'], ['fillet', 'Fillet', 'sfillet', 'F'], ['trim', 'Trim', 'trim', 'T'], ['offset', 'Offset', 'offset', 'O'],
-  ['mirror', 'Mirror', 'mirror', ''], ['project', 'Project', 'project', ''],
+  ['mirror', 'Mirror', 'mirror', ''], ['lpattern', 'Linear Pattern', 'rpattern', ''], ['cpattern', 'Circular Pattern', 'cpattern', ''], ['project', 'Project', 'project', ''],
 ];
 // constraint tools: [type, label, glyph, needs]
 const CONSTRAINTS = [
@@ -43,7 +43,9 @@ const DIMS = {
   line: [['L', 'Length'], ['A', 'Angle']], rect: [['W', 'Width'], ['H', 'Height']], crect: [['W', 'Width'], ['H', 'Height']],
   circle: [['D', 'Diameter']], polygon: [['R', 'Radius'], ['N', 'Sides']], slot: [['L', 'Length'], ['W', 'Width']],
   fillet: [['R', 'Radius']], offset: [['D', 'Distance']], arcc: [['R', 'Radius']], ellipse: [['A', 'Major axis'], ['B', 'Minor axis']],
+  lpattern: [['N', 'Count'], ['D', 'Spacing'], ['A', 'Angle']], cpattern: [['N', 'Count'], ['T', 'Total angle']],
 };
+const PATTERN_TOOLS = new Set(['lpattern', 'cpattern']);
 // the minor radius that puts point p on an ellipse with centre c and major axis end a
 function ellipseMinorThrough(c, a, p) {
   const rx = d2(c, a) || 1e-9, [x, y] = ellipseLocal({ c, rot: Math.atan2(a[1] - c[1], a[0] - c[0]) }, p);
@@ -282,7 +284,7 @@ export class Sketcher {
     if (!p) return;
     this.mouse = [ev.clientX, ev.clientY];
     this.cursorRaw = p;
-    const drawTool = !['select', 'dim', 'trim', 'offset', 'mirror', 'project', 'fillet'].includes(this.tool) && !this.tool.startsWith('c:');
+    const drawTool = !['select', 'dim', 'trim', 'offset', 'mirror', 'project', 'fillet', 'lpattern', 'cpattern'].includes(this.tool) && !this.tool.startsWith('c:');
     if (drawTool) {
       this.cursor = this.snap(p, this._lastPoint());
       this.hover = null;
@@ -357,6 +359,7 @@ export class Sketcher {
     if (t === 'fillet') return this._filletClick(raw);
     if (t === 'offset') return this._offsetClick(raw);
     if (t === 'mirror') return this._mirrorClick(raw);
+    if (PATTERN_TOOLS.has(t)) return this._patternClick(raw);
     if (t === 'project') return this._projectClick(ev);
     const s = this.snap(raw, this._lastPoint());
     this._drawClick(s);
@@ -407,6 +410,10 @@ export class Sketcher {
   }
 
   setTool(t) {
+    if (PATTERN_TOOLS.has(t) && ![...this.sel].some((k) => k[0] === 'c')) {
+      this.ui.toast('Select the curves to pattern first (Select tool), then choose the pattern');
+      t = 'select';
+    }
     this.tool = t;
     this.chain = null;
     this.picks = [];
@@ -510,7 +517,7 @@ export class Sketcher {
     }
     ch.pts.push(s);
     const n = ch.pts.length;
-    if ((['rect', 'crect', 'circle', 'polygon'].includes(t) && n === 2) || (['slot', 'arc3', 'arcc', 'ellipse'].includes(t) && n === 3)) {
+    if ((['rect', 'crect', 'circle', 'polygon'].includes(t) && n === 2) || (['slot', 'arc3', 'arcc', 'ellipse', 'circle3'].includes(t) && n === 3)) {
       const pts = ch.pts;
       this.chain = null;
       this._hideHud();
@@ -604,6 +611,12 @@ export class Sketcher {
         const pa = this.pointFor(s0, sk), pb = this.pointFor(s1, sk);
         const cid = this.addPoint(c);
         this.addCurve(sm < sw ? { type: 'arc', c: cid, a: pa, b: pb } : { type: 'arc', c: cid, a: pb, b: pa });
+      } else if (t === 'circle3') {
+        const c = circumcenter(s0.p, s1.p, s2.p);
+        if (!c) return this.ui.toast('The three points are in a line');
+        const cid = this.addCurve({ type: 'circle', c: this.addPoint(c), r: d2(c, s0.p) });
+        // clicked points stay on the circle
+        for (const s of [s0, s1, s2]) this.addCon('pointOnCurve', { p: this.pointFor(s, sk), curve: cid });
       } else if (t === 'ellipse') {
         if (d2(s0.p, s1.p) < 1e-9) return;
         const c = this.pointFor(s0, sk), a = this.pointFor(s1, sk);
@@ -1081,6 +1094,60 @@ export class Sketcher {
     }
   }
 
+  // ---- sketch patterns: copies of the selected curves along a line or round a centre
+  get pat() { return (this._pat ||= { n: 3, total: 360 }); }
+  _patSel() { return [...this.sel].filter((k) => k[0] === 'c').map((k) => k.slice(2)).filter((id) => getCurve(this.sk, id) && !VIRTUAL_LINES[id]); }
+  _patCentre() {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const id of this._patSel()) for (const q of sampleGeom(this.geomOf(id), 16)) { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }
+    return [(x0 + x1) / 2, (y0 + y1) / 2];
+  }
+  // step of a linear pattern: from the selection's centre to the cursor
+  _patStep() {
+    const c = this._patCentre(), q = this.cursorRaw || this.cursor?.p || [c[0] + 10, c[1]];
+    return { d: d2(c, q), a: (Math.atan2(q[1] - c[1], q[0] - c[0]) * 180) / Math.PI };
+  }
+  _patXf(p) {
+    if (this.tool === 'lpattern') {
+      const c = this._patCentre(), dx = p[0] - c[0], dy = p[1] - c[1];
+      return (q, i) => [q[0] + dx * i, q[1] + dy * i];
+    }
+    const full = Math.abs(this.pat.total - 360) < 1e-9, step = ((this.pat.total * Math.PI) / 180) / (full ? this.pat.n : this.pat.n - 1);
+    return (q, i) => { const a = step * i, x = q[0] - p[0], y = q[1] - p[1]; return [p[0] + x * Math.cos(a) - y * Math.sin(a), p[1] + x * Math.sin(a) + y * Math.cos(a)]; };
+  }
+  _drawPatternPreview(g, c) {
+    if (!c || !this._patSel().length) return;
+    const centre = this.tool === 'cpattern' ? this.snap(c).p : c, xf = this._patXf(centre);
+    for (let i = 1; i < this.pat.n; i++) for (const id of this._patSel()) g.add(this._line(sampleGeom(this.geomOf(id), 48).map((q) => xf(q, i)), COLORS.skPrev, { dashed: true }));
+    if (this.tool === 'cpattern') g.add(this._pointMark(centre, COLORS.skSnap, 4, true));
+  }
+  _patternClick(p) {
+    const s = this.snap(p);
+    this._applyPattern(this._patXf(this.tool === 'cpattern' ? s.p : p));
+  }
+  _applyPattern(xf) {
+    const ids = this._patSel();
+    if (!ids.length) return this.setTool('select');
+    const n = this.pat.n;
+    this.commitChange((sk) => { for (let i = 1; i < n; i++) this._copyCurves(sk, ids, (q) => xf(q, i)); });
+    this.ui.toast(`Made ${n - 1} cop${n === 2 ? 'y' : 'ies'} of ${ids.length} curve${ids.length === 1 ? '' : 's'}`, 'ok');
+    this.sel.clear();
+    this.setTool('select');
+  }
+  // copies curves through a rigid transform of their points (shared points stay shared)
+  _copyCurves(sk, ids, xf) {
+    const map = new Map();
+    const mp = (id) => { if (!map.has(id)) map.set(id, this.addPoint(xf(this.P(id)))); return map.get(id); };
+    for (const cid of ids) {
+      const c = getCurve(sk, cid), cons = c.construction ? { construction: true } : {};
+      if (c.type === 'line') this.addCurve({ type: 'line', a: mp(c.a), b: mp(c.b), ...cons });
+      else if (c.type === 'circle') this.addCurve({ type: 'circle', c: mp(c.c), r: c.r, ...cons });
+      else if (c.type === 'arc') this.addCurve({ type: 'arc', c: mp(c.c), a: mp(c.a), b: mp(c.b), ...cons });
+      else if (c.type === 'spline') this.addCurve({ type: 'spline', pts: c.pts.map(mp), closed: c.closed, ...cons });
+      else if (c.type === 'ellipse') this.addCurve({ type: 'ellipse', c: mp(c.c), a: mp(c.a), rb: c.rb, ...cons });
+    }
+  }
+
   _mirrorClick(p) {
     const sel = [...this.sel].filter((k) => k[0] === 'c').map((k) => k.slice(2));
     if (!sel.length) { this.ui.toast('Select the curves to mirror first (Select tool), then pick a mirror line'); this.setTool('select'); return; }
@@ -1166,6 +1233,17 @@ export class Sketcher {
     if (t === 'fillet') { if (v.R > 0) this.filletR = v.R; this._hideHud(); this._renderUI(); return; }
     if (t === 'offset') { if (v.D > 0) this.offsetD = v.D; this._hideHud(); this._renderUI(); return; }
     if (t === 'polygon' && v.N) this.polySides = Math.max(3, Math.min(64, Math.round(v.N)));
+    if (PATTERN_TOOLS.has(t)) {
+      if (v.N) this.pat.n = Math.max(2, Math.min(200, Math.round(v.N)));
+      if (t === 'cpattern') { if (v.T) this.pat.total = Math.max(1, Math.min(360, v.T)); this._hideHud(); this.ui.toast('Now click the centre of the pattern'); return this.redraw(); }
+      // a typed spacing applies straight away; otherwise the direction follows the cursor
+      if (v.D !== undefined || v.A !== undefined) {
+        const st = this._patStep();
+        const d = v.D ?? st.d, a = ((v.A ?? st.a) * Math.PI) / 180;
+        this._applyPattern((q, i) => [q[0] + Math.cos(a) * d * i, q[1] + Math.sin(a) * d * i]);
+      }
+      return this._blurHud();
+    }
     const cur = this.cursor?.p || [0, 0];
     const ch = this.chain;
     const first = ch?.last ? this.P(ch.last) : ch?.pts?.[0]?.p;
@@ -1257,7 +1335,7 @@ export class Sketcher {
   _updateHud() {
     const dims = DIMS[this.tool];
     const hud = this.ui.hud;
-    const always = this.tool === 'fillet' || this.tool === 'offset' || this.tool === 'polygon';
+    const always = this.tool === 'fillet' || this.tool === 'offset' || this.tool === 'polygon' || PATTERN_TOOLS.has(this.tool);
     if (!dims || !this.cursor || (!this.chain && !always)) { if (this._hudKey) this._hideHud(); return; }
     const key = `${this.tool}:${this.chain?.pts?.length || 0}:${!!this.chain?.last}`;
     if (this._hudKey !== key) {
@@ -1278,6 +1356,8 @@ export class Sketcher {
       case 'fillet': return { R: fmt(this.filletR) };
       case 'offset': return { D: fmt(this.offsetD) };
       case 'polygon': return { R: a && c ? fmt(d2(c, a)) : '', N: String(this.polySides) };
+      case 'lpattern': { const st = this._patStep(); return { N: String(this.pat.n), D: fmt(st.d), A: fmt(st.a) }; }
+      case 'cpattern': return { N: String(this.pat.n), T: fmt(this.pat.total) };
     }
     if (!c || !a) return {};
     switch (this.tool) {
@@ -1425,7 +1505,8 @@ export class Sketcher {
     }
     if (!c) return;
     const ch = this.chain;
-    const drawTool = !['select', 'dim', 'trim', 'offset', 'mirror', 'project', 'fillet'].includes(t) && !t.startsWith('c:');
+    const drawTool = !['select', 'dim', 'trim', 'offset', 'mirror', 'project', 'fillet', 'lpattern', 'cpattern'].includes(t) && !t.startsWith('c:');
+    if (PATTERN_TOOLS.has(t)) this._drawPatternPreview(g, c);
     if (drawTool) {
       const s = this.cursor;
       g.add(this._pointMark(c, s.point || s.curve || s.mid ? COLORS.skSnap : prev, s.point ? 5 : 3, !!s.point));
@@ -1464,6 +1545,10 @@ export class Sketcher {
           const cc = circumcenter(pts[0].p, pts[1].p, c);
           if (cc) g.add(this._line(arcThrough(cc, pts[0].p, pts[1].p, c), prev));
         }
+      }
+      if (t === 'circle3' && pts.length) {
+        if (pts.length === 1) g.add(this._line([pts[0].p, c], prev, { dashed: true }));
+        else { const cc = circumcenter(pts[0].p, pts[1].p, c); if (cc) g.add(this._line(sampleGeom({ type: 'circle', c: cc, r: d2(cc, c) }), prev)); }
       }
       if (t === 'ellipse' && pts.length) {
         const C = pts[0].p;
@@ -1764,6 +1849,10 @@ export class Sketcher {
       offset: `Click a curve to offset its connected chain toward the cursor. Distance: <b>${fmt(this.offsetD)}</b> (type to change).`,
       mirror: 'Select curves first, then use Mirror and click the mirror line or a sketch axis.',
       project: 'Click edges of existing bodies to project them into the sketch as fixed reference geometry.',
+      circle3: 'Click three points the circle passes through.',
+      ellipse: 'Click the center, the end of the long axis, then a point the ellipse passes through. Type <kbd>A</kbd> <kbd>Tab</kbd> <kbd>B</kbd> for the axis lengths.',
+      lpattern: `Click where the first copy goes (the step from the selection), or type the spacing and angle. Copies: <b>${this.pat.n}</b> in total (type <kbd>N</kbd> to change).`,
+      cpattern: `Click the centre of the pattern (snaps to points). <b>${this.pat.n}</b> in total over <b>${fmt(this.pat.total)}°</b> (type <kbd>N</kbd> and the total angle to change).`,
     }[t] || '';
   }
 }

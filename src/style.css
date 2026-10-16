@@ -708,3 +708,6 @@ svg.dw-sheet.placing { cursor: crosshair; }
 .dw-tab i:hover { opacity: 1; color: var(--danger); }
 .dw-tab.add { color: var(--accent); }
 .dw-tabs .spacer { flex: 1; }
+
+.dw-views { display: inline-flex; gap: 10px; }
+.dw-views label { gap: 5px !important; }

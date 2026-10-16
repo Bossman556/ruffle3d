@@ -154,14 +154,22 @@ export const FEATURES = {
     label: 'Fillet', icon: 'fillet', group: 'modify', key: 'F',
     fields: [
       { key: 'edges', label: 'Edges', type: 'edges', hint: 'Click edges' },
-      { key: 'radius', label: 'Radius', type: 'number', default: '3', unit: 'mm' },
+      { key: 'mode', label: 'Type', type: 'select', options: [['constant', 'Constant radius'], ['variable', 'Variable radius']], default: 'constant' },
+      { key: 'radius', label: 'Radius', type: 'number', default: '3', unit: 'mm', show: (p) => p.mode !== 'variable' },
+      { key: 'r1', label: 'Start radius', type: 'number', default: '1', unit: 'mm', show: (p) => p.mode === 'variable' },
+      { key: 'r2', label: 'End radius', type: 'number', default: '4', unit: 'mm', show: (p) => p.mode === 'variable' },
+      { key: 'flip', label: 'Swap ends', type: 'check', default: false, show: (p) => p.mode === 'variable' },
     ],
   },
   chamfer: {
     label: 'Chamfer', icon: 'chamfer', group: 'modify',
     fields: [
       { key: 'edges', label: 'Edges', type: 'edges', hint: 'Click edges' },
+      { key: 'mode', label: 'Type', type: 'select', options: [['equal', 'Equal distance'], ['two', 'Two distances'], ['angle', 'Distance and angle']], default: 'equal' },
       { key: 'distance', label: 'Distance', type: 'number', default: '2', unit: 'mm' },
+      { key: 'distance2', label: 'Distance 2', type: 'number', default: '1', unit: 'mm', show: (p) => p.mode === 'two' },
+      { key: 'angle', label: 'Angle', type: 'number', default: '30', unit: '°', show: (p) => p.mode === 'angle' },
+      { key: 'flip', label: 'Swap sides', type: 'check', default: false, show: (p) => p.mode === 'two' || p.mode === 'angle' },
     ],
   },
   shell: {
@@ -290,6 +298,15 @@ export const FEATURES = {
       { key: 'offset', label: 'Start offset', type: 'number', default: '0', unit: 'mm' },
       { key: 'hand', label: 'Hand', type: 'select', options: [['right', 'Right'], ['left', 'Left']], default: 'right' },
       { key: 'flip', label: 'Start from other end', type: 'check', default: false },
+    ],
+  },
+  pipe: {
+    label: 'Pipe', icon: 'pipe', group: 'create',
+    fields: [
+      { key: 'sketch', label: 'Path sketch', type: 'sketch', hint: 'Connected lines, arcs and splines (open or closed)' },
+      { key: 'od', label: 'Outside diameter', type: 'number', default: '10', unit: 'mm' },
+      { key: 'wall', label: 'Wall thickness', type: 'number', default: '1', unit: 'mm', hint: '0 for a solid bar' },
+      OP, TARGET,
     ],
   },
   wrap: {

@@ -145,13 +145,14 @@ const DESC = {
   thread: 'Modelled ISO metric thread on a shaft or in a hole', coil: 'Helical coil spring',
   rib: 'Stiffening web from an open sketch line: fills out to the walls of the part',
   wrap: 'Wrap a sketch onto a cylinder or flat face and raise or cut it: logos, labels, grips',
+  pipe: 'Round tube or bar along a path sketch: frames, handrails, tubing, wiring',
   text: 'Raised or engraved text on a plane or a flat face',
   sheetbase: 'Flat sheet metal plate from a sketch profile, with thickness, bend radius and K-factor', flange: 'Bend a flange up or down from a straight edge of a sheet metal plate',
 };
 const cmdInfo = (c) => ({ ...(FEATURES[c] || {}), desc: DESC[c], ...(EXTRA[c] || {}) });
 const SHORT = { sheetbase: 'Base', flatpattern: 'Flat', printcheck: 'Print', importdxf: 'DXF', exportdxf: 'DXF out', configs: 'Configs', cvcurve: 'CV Curve', editcv: 'Edit CVs', cvsurface: 'CV Surface', rebuildcv: 'Rebuild', surffillet: 'Fillet', surftrim: 'Trim', appearance: 'Paint', draftan: 'Draft', surfextrude: 'Extrude', surfrevolve: 'Revolve', surfloft: 'Skin', surfsweep: 'Rail', patch: 'Patch', surfoffset: 'Offset', curvmap: 'Curvature', comb: 'Comb', presspull: 'Press Pull', rpattern: 'Pattern', cpattern: 'Circular', ppattern: 'Path', 'plane:offset': 'Plane', interference: 'Interfere', cylinder: 'Cylinder' };
 const DESIGN_GROUPS = [
-  { name: 'Create', color: 'create', items: ['sketch', 'extrude', 'revolve', 'sweep', 'loft', 'hole'], more: ['rib', 'wrap', 'text', 'thread', 'coil', '-', 'box', 'cylinder', 'sphere', 'torus', 'cone', '-', 'rpattern', 'cpattern', 'ppattern', 'mirror'] },
+  { name: 'Create', color: 'create', items: ['sketch', 'extrude', 'revolve', 'sweep', 'loft', 'hole'], more: ['rib', 'wrap', 'pipe', 'text', 'thread', 'coil', '-', 'box', 'cylinder', 'sphere', 'torus', 'cone', '-', 'rpattern', 'cpattern', 'ppattern', 'mirror'] },
   { name: 'Modify', color: 'modify', items: ['presspull', 'fillet', 'chamfer', 'shell', 'combine', 'appearance'], more: ['draft', 'split', 'move', 'scale', 'remove', '-', 'material', 'params'] },
   { name: 'Sheet Metal', color: 'sheet', items: ['sheetbase', 'flange', 'flatpattern'], more: [] },
   { name: 'Assemble', color: 'assemble', items: ['component', 'mate', 'joint', 'explode'], more: ['assembly', 'animate'] },

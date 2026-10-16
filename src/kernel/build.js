@@ -6,7 +6,7 @@ import {
   makeBaseBox, makeCylinder, makeSphere, makeVertex, makeCompound,
   measureDistanceBetween, measureVolume, measureArea, measureShapeVolumeProperties,
   exportSTEP, importSTEP, importSTL, genericSweep, basicFaceExtrusion, drawProjection, ProjectionCamera,
-  getOC, cast, downcast, loft, makeAx1, weldShellsAndFaces, Shell, Edge, Face, assembleWire, makeHelix, makePolygon, makeBox, Wire,
+  getOC, cast, downcast, loft, makeAx1, makeCircle, makeLine, weldShellsAndFaces, Shell, Edge, Face, assembleWire, makeHelix, makePolygon, makeBox, Wire,
 } from 'replicad';
 import { yDirOf, STD_PLANES, planeFromPointNormal, rotateVec, cross } from '../geom2d.js';
 import { migrateSketch, sketchGeom } from '../sketch/model.js';
@@ -1224,7 +1224,8 @@ function rotVec(R) {
   const v = [(R[7] - R[5]) / 2, (R[2] - R[6]) / 2, (R[3] - R[1]) / 2], sn = Math.hypot(...v), cs = (R[0] + R[4] + R[8] - 1) / 2;
   const th = Math.atan2(sn, cs);
   if (th < 1e-12) return v;
-  if (sn > 1e-4) return v.map((x) => (x * th) / sn);
+  // small and ordinary angles: the antisymmetric part gives the axis (only near 180° is it too small to use)
+  if (sn > 1e-4 || cs > 0) return v.map((x) => (x * th) / sn);
   // near 180°: the axis is the dominant column of R + I, signed to agree with the antisymmetric part
   const k = R[0] >= R[4] && R[0] >= R[8] ? 0 : R[4] >= R[8] ? 1 : 2;
   const col = [R[k] + (k === 0 ? 1 : 0), R[3 + k] + (k === 1 ? 1 : 0), R[6 + k] + (k === 2 ? 1 : 0)];
@@ -1343,6 +1344,15 @@ const MATE_RES = {
     const a = unwrapNear(turnAngle(A), g.a), s = dot(B.p, B.n) * (m.flip ? -1 : 1);
     return [s - (m.radius || A.r || 1) * a - (g.phase ?? 0)];
   },
+  // cam and follower: the follower (a flat face, or a round face as a roller) touches the cam. The contact
+  // point on the cam is found on its exact surface between solves (camContact) and held fixed during each
+  // one, so the equations stay smooth; the solve repeats until the contact point stops moving.
+  cam: (A, B, m) => {
+    const q = A.q;
+    if (B.kind === 'plane') return [dot(sub(q, B.p), B.n) - (m.offset || 0)];
+    const w = sub(q, B.p), t = dot(w, B.d);
+    return [Math.hypot(w[0] - B.d[0] * t, w[1] - B.d[1] * t, w[2] - B.d[2] * t) - B.r - (m.offset || 0)];
+  },
   // contact: the second face may touch the first or move away from it, but not pass through it
   // (flat on flat: the faces stay facing each other, so the part can't tip a corner into the other)
   contact: (A, B, m) => { const d = dot(sub(B.p, A.p), A.n) - (m.offset || 0); return [...add(A.n, B.n), d < 0 ? d : 0]; },
@@ -1357,6 +1367,49 @@ const MATE_RES = {
 };
 const MATE_NEEDS = { mate: 'plane', flush: 'plane', distance: 'plane', contact: 'plane', concentric: 'axis', gear: 'axis' };
 const MATE_NEEDS2 = { rack: ['axis', 'plane'] };
+// a cam: points on the whole surface of the body the first face belongs to, in its component's frame
+const camCache = new WeakMap();
+function camGeom(state, ref) {
+  const shape = ref.comp ? state.components.get(ref.comp)?.local.get(ref.body) : state.bodies.get(ref.body);
+  if (!shape) throw new Error('The cam body no longer exists');
+  let g = camCache.get(shape);
+  if (!g) {
+    const bb = bboxOf(shape), tol = Math.max(bb.diag * 5e-5, 1e-4), ms = shape.mesh({ tolerance: tol, angularTolerance: 0.02 });
+    const pts = [];
+    for (let i = 0; i < ms.vertices.length; i += 3) pts.push([ms.vertices[i], ms.vertices[i + 1], ms.vertices[i + 2]]);
+    g = { pts, c: bb.center, diag: bb.diag };
+    camCache.set(shape, g);
+  }
+  return { kind: 'cam', shape, cloud: g, q: null };
+}
+// The point of the cam (in its own frame) that touches the follower: for a flat follower the cam's extreme
+// point towards the face, for a roller the cam point nearest its axis. Found exactly with OpenCascade
+// against a plane just beyond the cam or against the roller's axis line; the surface points give the start.
+function camContact(cam, Tc, Bw) {
+  const R = rodrigues(Tc.r), loc = (v) => [R[0] * v[0] + R[3] * v[1] + R[6] * v[2], R[1] * v[0] + R[4] * v[1] + R[7] * v[2], R[2] * v[0] + R[5] * v[1] + R[8] * v[2]];
+  const { pts, c, diag } = cam.cloud, oc = getOC();
+  let tool, best = null;
+  if (Bw.kind === 'plane') {
+    const n = unit(loc(Bw.n));
+    let lo = Infinity;
+    for (const q of pts) { const v = dot(q, n); if (v < lo) { lo = v; best = q; } }
+    const at = add(c, mul(n, lo - 1 - diag * 0.01 - dot(c, n))), e1 = perpTo(n), e2 = cross(n, e1), h = diag * 1.5;
+    tool = makePolygon([add(at, add(mul(e1, h), mul(e2, h))), add(at, add(mul(e1, -h), mul(e2, h))), add(at, add(mul(e1, -h), mul(e2, -h))), add(at, add(mul(e1, h), mul(e2, -h)))]);
+  } else {
+    const p = loc(sub(Bw.p, Tc.t)), d = unit(loc(Bw.d));
+    let lo = Infinity;
+    for (const q of pts) { const w = sub(q, p), t = dot(w, d), e = len(sub(w, mul(d, t))); if (e < lo) { lo = e; best = q; } }
+    const L = diag * 3 + len(sub(p, c));
+    tool = makeLine(add(p, mul(d, -L)), add(p, mul(d, L)));
+  }
+  try {
+    const ds = new oc.BRepExtrema_DistShapeShape();
+    ds.LoadS1(cam.shape.wrapped); ds.LoadS2(tool.wrapped); ds.Perform();
+    if (ds.IsDone() && ds.NbSolution() > 0) { const P = ds.PointOnShape1(1); best = [P.X(), P.Y(), P.Z()]; P.delete(); }
+    ds.delete();
+  } catch { /* keep the nearest surface point */ }
+  return best;
+}
 // a unit vector perpendicular to d (deterministic)
 function perpTo(d) { const a = Math.abs(d[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]; return unit(cross(d, a)); }
 // how far a part has turned about its own axis: the angle of its reference vector e around d, against a
@@ -1384,7 +1437,7 @@ export function solveAssembly(state, mates = []) {
   for (const m of mates) {
     if (m.suppressed) continue;
     try {
-      const A = mateGeom(state, m.a), B = mateGeom(state, m.b);
+      const A = m.type === 'cam' ? camGeom(state, m.a) : mateGeom(state, m.a), B = mateGeom(state, m.b);
       const need = MATE_NEEDS[m.type];
       const need2 = MATE_NEEDS2[m.type];
       if (need2 && (A.kind !== need2[0] || B.kind !== need2[1])) throw new Error('Rack and pinion: pick a round face on the pinion, then the flat end face of the rack');
@@ -1397,7 +1450,10 @@ export function solveAssembly(state, mates = []) {
   const mated = new Set(active.flatMap(({ m }) => [m.a.comp, m.b.comp]));
   const free = movable.filter((id) => mated.has(id));
   for (const [id, c] of comps) if (!free.includes(id)) T0.set(id, c.T);
-  const world = (g, T) => (g.kind === 'plane' ? { kind: 'plane', p: transformPoint(T, g.p), n: transformDir(T, g.n) } : { kind: 'axis', p: transformPoint(T, g.p), d: transformDir(T, g.d), e: transformDir(T, g.e) });
+  const world = (g, T) => {
+    if (g.kind === 'cam') return { kind: 'campt', q: transformPoint(T, g.q) };
+    return g.kind === 'plane' ? { kind: 'plane', p: transformPoint(T, g.p), n: transformDir(T, g.n) } : { kind: 'axis', p: transformPoint(T, g.p), d: transformDir(T, g.d), e: transformDir(T, g.e), r: g.r };
+  };
   const tOf = (Ts, ref) => (ref.comp ? Ts.get(ref.comp) : { r: [0, 0, 0], t: [0, 0, 0] });
   for (const { m, A, B } of active) {
     if (m.type !== 'gear' && m.type !== 'rack') continue;
@@ -1467,13 +1523,34 @@ export function solveAssembly(state, mates = []) {
   }
   return { Ts, cur, rank, ok: cur.per.every((v) => v < 1e-5) };
   };
-  let sol = solveSet(active, T0);
+  // cam mates: find the contact points for a pose, solve with them held, and repeat until they settle
+  const cams = active.filter(({ m }) => m.type === 'cam');
+  const setContacts = (set, Ts) => {
+    let moved = 0;
+    for (const it of set) {
+      if (it.m.type !== 'cam') continue;
+      const q = camContact(it.A, tOf(Ts, it.m.a), world(it.B, tOf(Ts, it.m.b)));
+      moved = Math.max(moved, it.A.q ? len(sub(q, it.A.q)) : Infinity);
+      it.A.q = q;
+    }
+    return moved;
+  };
+  const solveSetRaw = solveSet;
+  const solveC = (set, start) => {
+    if (!set.some((it) => it.m.type === 'cam')) return solveSetRaw(set, start);
+    setContacts(set, start);
+    let s = solveSetRaw(set, start);
+    for (let k = 0; k < 40; k++) { if (setContacts(set, s.Ts) < 1e-9) break; s = solveSetRaw(set, s.Ts); }
+    return s;
+  };
+  if (cams.length) setContacts(cams, T0);
+  let sol = solveC(active, T0);
   const conflicts = new Set();
   if (!sol.ok && active.length > 1) {
     // over-constrained: keep mates in the order they were added and drop the ones that cannot be met with the earlier ones
-    let acc = [], best = solveSet([], T0);
+    let acc = [], best = solveC([], T0);
     for (const item of active) {
-      const t = solveSet([...acc, item], best.Ts);
+      const t = solveC([...acc, item], best.Ts);
       if (t.ok) { acc.push(item); best = t; } else conflicts.add(item.m.id);
     }
     sol = best;
@@ -1619,6 +1696,21 @@ const BUILDERS = {
     applyOp(st, f.id, shape, p.op, p.target);
   },
 
+  // Pipe: a round tube (or solid bar) swept along a path, starting square to the path
+  pipe(f, st) {
+    const { p } = f;
+    if (!(p.od > 0)) throw new Error('Outside diameter must be positive');
+    const wall = +p.wall || 0;
+    if (wall < 0 || wall >= p.od / 2) throw new Error('The wall must be thinner than the radius (0 for a solid bar)');
+    const spine = railWire(st, p.sketch);
+    const start = vxyz(spine.startPoint), dir = unit(vxyz(spine.tangentAt(0)));
+    const tube = (r) => genericSweep(assembleWire([makeCircle(r, start, dir)]), spine, { frenet: true, transitionMode: 'round' }, false);
+    let shape = tube(p.od / 2);
+    if (wall > 0) shape = shape.cut(tube(p.od / 2 - wall));
+    if (!hasSolid(shape)) throw new Error('Could not sweep the pipe along this path (is the bend radius smaller than the pipe?)');
+    applyOp(st, f.id, outward(shape), p.op, p.target);
+  },
+
   box(f, st) {
     const { p } = f;
     if (p.w <= 0 || p.d <= 0 || p.h <= 0) throw new Error('Dimensions must be positive');
@@ -1697,8 +1789,42 @@ const BUILDERS = {
     }
   },
 
-  fillet(f, st) { edgeMod(f, st, 'fillet', f.p.radius); },
-  chamfer(f, st) { edgeMod(f, st, 'chamfer', f.p.distance); },
+  fillet(f, st) {
+    const { p } = f;
+    if (p.mode !== 'variable') return edgeMod(f, st, 'fillet', p.radius);
+    // a radius that changes linearly from the start of each edge to its end
+    if (!(p.r1 > 0) || !(p.r2 > 0)) throw new Error('Both radii must be positive');
+    const rr = p.flip ? [p.r2, p.r1] : [p.r1, p.r2];
+    edgeMod(f, st, 'fillet', Math.max(p.r1, p.r2), () => rr);
+  },
+  chamfer(f, st) {
+    const { p } = f;
+    if (p.mode !== 'two' && p.mode !== 'angle') return edgeMod(f, st, 'chamfer', p.distance);
+    if (!(p.distance > 0)) throw new Error('Distance must be positive');
+    if (p.mode === 'two' && !(p.distance2 > 0)) throw new Error('Distance 2 must be positive');
+    if (p.mode === 'angle' && !(p.angle > 0 && p.angle < 90)) throw new Error('The angle must be between 0° and 90°');
+    // unequal chamfers are measured from one of the two faces at each edge: the first is the face with the
+    // lower index, Swap sides uses the other one
+    const oc = getOC();
+    for (const [bodyId, list] of groupByBody(p.edges)) {
+      const body = getBody(st, bodyId), tol = tolFor(body), edges = body.edges, faces = body.faces;
+      const pts = resolvePicks(body, edges, list, tol, { expand: true });
+      const chosen = edges.filter((e) => pts.some((q) => near(e, q, tol)));
+      if (!chosen.length) throw new Error('The selected edges no longer exist - edit this feature and reselect them');
+      const mk = new oc.BRepFilletAPI_MakeChamfer(body.wrapped);
+      for (const e of chosen) {
+        const mid = vxyz(e.pointAt(0.5));
+        const adj = faces.filter((fc) => near(fc, mid, tol));
+        if (adj.length < 2) throw new Error('An unequal chamfer needs an edge between two faces');
+        const face = adj[p.flip ? 1 : 0];
+        if (p.mode === 'two') mk.Add(p.distance, p.distance2, e.wrapped, face.wrapped);
+        else mk.AddDA(p.distance, (p.angle * Math.PI) / 180, e.wrapped, face.wrapped);
+      }
+      const out = shapeOf(mk);
+      if (!hasSolid(out)) throw new Error('Could not chamfer these edges');
+      st.bodies.set(bodyId, out);
+    }
+  },
 
   shell(f, st) {
     const { p } = f;
@@ -2391,7 +2517,7 @@ async function importSTLShape(blob) {
   return shell;
 }
 
-function edgeMod(f, st, kind, r) {
+function edgeMod(f, st, kind, r, radiusOf = () => r) {
   const picks = f.p.edges;
   if (!picks?.length) throw new Error('Select edges');
   if (!(r > 0)) throw new Error('Size must be positive');
@@ -2401,7 +2527,7 @@ function edgeMod(f, st, kind, r) {
     const edges = body.edges;
     const pts = resolvePicks(body, edges, list, tol, { expand: true });
     if (!edges.some((e) => pts.some((p) => near(e, p, tol)))) throw new Error('The selected edges no longer exist - edit this feature and reselect them');
-    const pickFn = (edge) => (pts.some((p) => near(edge, p, tol)) ? r : null);
+    const pickFn = (edge) => (pts.some((p) => near(edge, p, tol)) ? radiusOf(edge) : null);
     st.bodies.set(bodyId, kind === 'fillet' ? body.fillet(pickFn) : body.chamfer(pickFn));
   }
 }

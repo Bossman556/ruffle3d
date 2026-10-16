@@ -20,6 +20,7 @@ export const MATE_TYPES = {
   contact: { label: 'Contact', desc: 'A flat face rests on another and can lift off, but not sink into it', needs: 'plane', offset: true },
   gear: { label: 'Gear', desc: 'Two round faces turn together at a ratio (gears, belts)', needs: 'axis', ratio: true, flip: true, flipLabel: 'Same direction (belt)' },
   rack: { label: 'Rack and pinion', desc: 'Turning the pinion slides the rack', rackR: true, flip: true, flipLabel: 'Reverse' },
+  cam: { label: 'Cam', desc: 'A follower keeps touching a cam of any shape as it turns', offset: true },
 };
 
 // rotation helpers (same conventions as the kernel: T = { r: rotation vector, t })
@@ -124,7 +125,7 @@ export class AssemblyTools {
     M[key] = r;
     M.active = key === 'a' && !M.b ? 'b' : null;
     // a pair of round faces is almost always a concentric mate
-    if (M.a && M.b && !M.editing && M.type !== 'gear' && M.type !== 'rack' && hit.kind === 'face' && this.faceKind(M.a) === 'round' && this.faceKind(M.b) === 'round') M.type = 'concentric';
+    if (M.a && M.b && !M.editing && M.type !== 'gear' && M.type !== 'rack' && M.type !== 'cam' && hit.kind === 'face' && this.faceKind(M.a) === 'round' && this.faceKind(M.b) === 'round') M.type = 'concentric';
     this.app.updateHighlights();
     this.app.renderRight();
   }
@@ -171,7 +172,7 @@ export class AssemblyTools {
         ${T.ratio ? `<div class="field"><label>Ratio</label><div class="num"><input data-ratio type="number" step="0.1" min="0.001" value="${M.ratio ?? 1}"><span class="unit">×</span></div></div>` : ''}
         ${T.rackR ? `<div class="field"><label>Pitch radius</label><div class="num"><input data-rr type="number" step="0.5" min="0" value="${M.radius ? +(M.radius / u.scale).toFixed(4) : ''}" placeholder="from the face"><span class="unit">${u.label}</span></div></div>` : ''}
         ${T.flip ? `<div class="field check"><label>${T.flipLabel || 'Flip'}</label><label class="switch"><input type="checkbox" data-flip ${M.flip ? 'checked' : ''}><span></span></label></div>` : ''}
-        <div class="help">${M.type === 'gear' ? 'Pick a round face on each gear (the bore or the outside). The second gear turns ratio × as far as the first; use teeth of the first ÷ teeth of the second. Add concentric mates to hold each gear on its shaft.' : M.type === 'rack' ? 'Pick a round face on the pinion, then the flat end face of the rack: the rack slides along that face’s normal by pitch radius × the turn.' : T.needs === 'axis' ? 'Pick two round faces, such as a pin and a hole.' : T.needs === 'plane' ? 'Pick two flat faces.' : 'Pick two flat or round faces.'} Parts that are not grounded move to satisfy all the mates together.</div>
+        <div class="help">${M.type === 'cam' ? 'Pick any face of the cam first, then the follower: a flat face (a flat follower) or a round face (a roller). The follower keeps touching the cam wherever the cam is turned. Guide the follower with other mates so it can only slide (or swing) towards the cam, and turn the cam with a joint, an angle mate or a gear.' : M.type === 'gear' ? 'Pick a round face on each gear (the bore or the outside). The second gear turns ratio × as far as the first; use teeth of the first ÷ teeth of the second. Add concentric mates to hold each gear on its shaft.' : M.type === 'rack' ? 'Pick a round face on the pinion, then the flat end face of the rack: the rack slides along that face’s normal by pitch radius × the turn.' : T.needs === 'axis' ? 'Pick two round faces, such as a pin and a hole.' : T.needs === 'plane' ? 'Pick two flat faces.' : 'Pick two flat or round faces.'} Parts that are not grounded move to satisfy all the mates together.</div>
       </div></div></div>
       <div class="panel-foot"><span class="spacer"></span><button class="btn ghost" data-x>Cancel</button><button class="btn primary" data-ok>${icon('check')}OK</button></div>`;
     el.querySelectorAll('[data-x]').forEach((b) => (b.onclick = () => app.exitMode()));
